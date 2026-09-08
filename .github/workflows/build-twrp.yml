@@ -66,7 +66,12 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '11'
+# Cleanup The Actions Workspace Using Custom Composite Run Actions
+      - name: Cleanup
+        uses: rokibhasansagar/slimhub_actions@main
+# That's it! Now normal steps
 
+          
       - name: Install Ubuntu build dependencies
         run: |
           sudo apt-get update
@@ -85,18 +90,6 @@ jobs:
           which repo
           echo "PATH=$(dirname $(which repo)):$PATH" >> $GITHUB_ENV
         shell: bash
-      
-      - name: Reclaim Hidden Disks Storage
-        uses: easimon/maximize-build-space@master
-        with:
-          root-reserve-mb: 5120
-          swap-size-mb: 1024
-          remove-dotnet: 'true'
-          remove-android: 'true'
-          remove-haskell: 'true'
-          remove-codeql: 'true'
-          remove-docker-images: 'true'
-          
         
       - name: Prepare workspace
         run: mkdir -p "${WORKDIR}"
@@ -135,7 +128,11 @@ jobs:
           if [ -n "$KERNEL_REPO" ]; then git clone --depth=1 "$KERNEL_REPO" kernel/oneplus/sm7325; fi
           if [ -n "$VENDOR_REPO" ]; then git clone --depth=1 "$VENDOR_REPO" vendor/oneplus/ziti; fi
         shell: bash
-
+      - name: Set Swap Space
+        uses: pierotofy/set-swap-space@master
+        with:
+          swap-size-gb: 12
+        
       - name: Build TWRP recovery
         env:
           LUNCH_TARGET: ${{ github.event.inputs.lunch_target }}
