@@ -35,7 +35,7 @@ on:
         description: 'Optional vendor repo to clone (git URL)'
         required: false
         default: 'https://github.com/OnePlusOSS/android_vendor_oneplus_ziti.git'
-      jobs:
+      make_jobs:
         description: 'Parallel jobs for make (use 2,4,8,... or leave blank for runner cores)'
         required: false
         default: ''
@@ -53,7 +53,7 @@ jobs:
       DEVICE_REPO: ${{ github.event.inputs.device_repo }}
       KERNEL_REPO: ${{ github.event.inputs.kernel_repo }}
       VENDOR_REPO: ${{ github.event.inputs.vendor_repo }}
-      JOBS: ${{ github.event.inputs.jobs }}
+      JOBS: ${{ github.event.inputs.make_jobs }}
     steps:
       - name: Checkout workflow repo
         uses: actions/checkout@v4
@@ -73,9 +73,7 @@ jobs:
             git-core gnupg flex bison build-essential zip curl zlib1g-dev \
             libssl-dev libncurses5 libncurses5-dev python3 python3-pip \
             python-is-python3 lzop bc g++-multilib gcc-multilib rsync \
-            unzip pkg-config ccache lz4 u-boot-tools schedtool \
-            android-sdk-libsdl2 || true
-          # Clean apt cache
+            unzip pkg-config ccache lz4 u-boot-tools schedtool || true
           sudo apt-get clean
         shell: bash
 
@@ -84,8 +82,7 @@ jobs:
           mkdir -p ~/bin
           curl https://storage.googleapis.com/git-repo-downloads/repo > ~/bin/repo
           chmod a+x ~/bin/repo
-          echo "Added ~/bin to PATH"
-          echo 'export PATH=$HOME/bin:$PATH' >> $GITHUB_ENV
+          echo 'PATH=$HOME/bin:$PATH' >> $GITHUB_ENV
         shell: bash
 
       - name: Prepare workspace
@@ -142,10 +139,9 @@ jobs:
 
       - name: Apply extra local patches (optional)
         run: |
-          # Place any ad-hoc patching/overrides here, e.g. copy device tree from repo root into repo tree
-          # Example: if you cloned device tree earlier into repo root, copy into Android tree
-          if [ -d "$GITHUB_WORKSPACE/android/device/oneplus/ziti" ]; then
-            cp -r $GITHUB_WORKSPACE/android/device/oneplus/ziti ${WORKDIR}/device/oneplus/ziti || true
+          # If you kept the device tree in the repo root, copy it into the Android tree
+          if [ -d "$GITHUB_WORKSPACE/device/oneplus/ziti" ]; then
+            cp -r $GITHUB_WORKSPACE/device/oneplus/ziti ${WORKDIR}/device/oneplus/ziti || true
           fi
         shell: bash
 
@@ -153,19 +149,15 @@ jobs:
         run: |
           set -e
           cd "${WORKDIR}"
-          # load environment and lunch
           export USE_CCACHE=1
           export CCACHE_DIR="${CCACHE_DIR}"
-          # ensure repo's build/envsetup exists
           . build/envsetup.sh
           lunch "${LUNCH_TARGET}"
-          # choose number of jobs
           if [ -n "${JOBS}" ]; then
             JOBS_ARG="-j${JOBS}"
           else
             JOBS_ARG="-j$(nproc)"
           fi
-          # prefer mka if available
           if command -v mka >/dev/null 2>&1; then
             mka ${BUILD_TARGET} ${JOBS_ARG}
           else
@@ -178,7 +170,6 @@ jobs:
         run: |
           set -e
           cd "${WORKDIR}"
-          # Common output paths
           ARTIFACTS=()
           while IFS= read -r -d $'\0' file; do
             ARTIFACTS+=("$file")
