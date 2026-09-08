@@ -45,8 +45,8 @@ jobs:
     runs-on: ubuntu-22.04
     env:
       WORKDIR: ${{ github.workspace }}/android
-      CCACHE_DIR: ${{ runner.temp }}/ccache
-
+      CCACHE_DIR: ${{ github.workspace }}/ccache
+      
     steps:
       - name: Checkout workflow repo
         uses: actions/checkout@v4
