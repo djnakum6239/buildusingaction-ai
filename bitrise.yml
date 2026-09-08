@@ -8,7 +8,7 @@ app:
   - MANIFEST_BRANCH: "twrp-12.1"
   - LUNCH_TARGET: "twrp_oneplus_ziti-eng"
   - BUILD_TARGET: "recoveryimage"
-
+  
 workflows:
   build_twrp:
     steps:
@@ -23,7 +23,7 @@ workflows:
             #!/usr/bin/env bash
             set -ex
             
-            # Update apt repositories and pull required AOSP packages
+            # Install Ubuntu 24.04 compatible tools (using libncurses6 and dev headers)
             sudo apt-get update
             sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
               git-core gnupg flex bison build-essential zip curl zlib1g-dev \
@@ -44,7 +44,7 @@ workflows:
             git config --global user.name "Bitrise Builder"
             git config --global user.email "builder@bitrise.io"
             
-            # Shallow init pulls the tree framework without massive file history
+            # Shallow framework initialization
             repo init -u "$MANIFEST_URL" -b "$MANIFEST_BRANCH" --depth=1
             repo sync -c -j$(nproc) --no-tags --no-clone-bundle --force-sync
         timeout: 7200
@@ -57,14 +57,20 @@ workflows:
             set -ex
             cd "$WORKDIR"
             
-            # Clear target configurations to prevent overlapping path drops
+            # Wipe local targets to prevent overlapping paths
             rm -rf device/oneplus/ziti vendor/oneplus/ziti kernel/oneplus/sm7325
             mkdir -p device/oneplus vendor/oneplus kernel/oneplus
             
-            # Fixed, verified open-source targets for the CPH2569 ziti layout
-            git clone --depth=1 https://github.com/amit-0i/twrp_device_oneplus_ziti.git
-            git clone --depth=1 https://github.com/OnePlusOSS/android_kernel_oneplus_sm7325.git
-            git clone --depth=1 https://github.com/OnePlusOSS/android_vendor_oneplus_ziti.git
+            # 1. Clone your verified device tree into the exact destination folder
+            git clone --depth=1 https://github.com/amit-0i/twrp_device_oneplus_ziti.git device/oneplus/ziti
+            
+            # 2. Clone the verified official open-source OnePlus kernel tree into the destination folder
+            git clone --depth=1 https://github.com/OnePlusOSS/android_kernel_oneplus_sm7325.git kernel/oneplus/sm7325
+            
+            # 3. Handle Vendor: Since OnePlusOSS doesn't host an official vendor tree, 
+            # we create an empty placeholder directory. Most modern TWRP trees bypass proprietary vendor 
+            # files during recovery compilation by copying required blobs from the device dynamically.
+            mkdir -p vendor/oneplus/ziti
 
     - script@1:
         title: Compile TWRP Image
@@ -75,6 +81,7 @@ workflows:
             cd "$WORKDIR"
             
             export USE_CCACHE=0
+            # Tells AOSP build engine to ignore missing proprietary vendor files
             export ALLOW_MISSING_DEPENDENCIES=true
             
             . build/envsetup.sh
