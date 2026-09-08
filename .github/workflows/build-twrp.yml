@@ -80,14 +80,13 @@ jobs:
       - name: Install repo tool
         run: |
           mkdir -p "$HOME/bin"
-          # -L forces curl to follow redirects, using Google's official source code pool
-          curl -L -sS -o "$HOME/bin/repo" https://googlesource.com
+          # Download the stable, standalone repo launcher script directly from structural package sources
+          curl -L -sS -o "$HOME/bin/repo" https://githubusercontent.com
           
-          # The official Google URL returns base64 text, we decode it directly to binary
-          if grep -q "<!DOCTYPE html>" "$HOME/bin/repo"; then
-            echo "Fallback download triggered..."
-            curl -L -sS -o "$HOME/bin/repo" https://googleapis.com
-          else
+          # Quick sanity check: if it downloaded HTML by accident, overwrite it with a secondary reliable mirror
+          if grep -q "DOCTYPE html" "$HOME/bin/repo"; then
+            echo "Primary link blocked. Fetching via raw mirror..."
+            curl -L -sS -o "$HOME/bin/repo" https://googlesource.com
             base64 -d "$HOME/bin/repo" > "$HOME/bin/repo.bin"
             mv "$HOME/bin/repo.bin" "$HOME/bin/repo"
           fi
@@ -95,6 +94,7 @@ jobs:
           chmod a+x "$HOME/bin/repo"
           echo "PATH=$HOME/bin:$PATH" >> $GITHUB_ENV
         shell: bash
+        
         
       - name: Prepare workspace
         run: mkdir -p "${WORKDIR}"
