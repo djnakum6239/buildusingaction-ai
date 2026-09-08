@@ -6,11 +6,11 @@ on:
       manifest_url:
         description: 'repo manifest URL (manifest.xml)'
         required: true
-        default: 'https://github.com/TeamWin/android_manifest.git'
+        default: 'https://github.com/minimal-manifest-twrp/platform_manifest_twrp_aosp.git'
       manifest_branch:
-        description: 'manifest branch (e.g., twrp-12.1 or twrp-11)'
+        description: 'manifest branch (e.g., twrp-12.1 or twrp-14)'
         required: true
-        default: 'twrp-12.1'
+        default: 'twrp-14.1'
       lunch_target:
         description: 'lunch target (e.g., twrp_oneplus_ziti-eng)'
         required: true
