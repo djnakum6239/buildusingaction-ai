@@ -28,13 +28,7 @@ on:
         required: false
         default: 'https://github.com/amit-0i/twrp_device_oneplus_ziti.git'
       kernel_repo:
-        description: 'Kernel repo HTTPS URL'
-        required: false
-        default: 'https://github.com/OnePlusOSS/android_kernel_oneplus_sm7325.git'
-      vendor_repo:
-        description: 'Vendor repo HTTPS URL'
-        required: false
-        default: 'https://github.com/OnePlusOSS/android_vendor_oneplus_ziti.git'
+        description: 'github.com/OnePlusOSS/android_vendor_oneplus_ziti.git'
       make_jobs:
         description: 'Parallel jobs for make (e.g., 8). Leave empty to use runner cores.'
         required: false
@@ -44,7 +38,7 @@ jobs:
   build:
     runs-on: ubuntu-22.04
     steps:
-      - name: Checkout workflow repo
+      - name: Checkout repo
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -52,10 +46,10 @@ jobs:
       - name: Set up Java (OpenJDK 11)
         uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
+          distribution: temurin
           java-version: '11'
 
-      - name: Install Ubuntu build dependencies
+      - name: Install minimal build deps
         run: |
           sudo apt-get update
           sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
@@ -74,13 +68,10 @@ jobs:
           echo "PATH=$HOME/bin:$PATH" >> $GITHUB_ENV
         shell: bash
 
-      - name: Prepare workspace + set WORKDIR/CCACHE_DIR
+      - name: Prepare workspace
         run: |
-          WORKDIR="$GITHUB_WORKSPACE/android"
-          CCACHE_DIR="$RUNNER_TEMP/ccache"
-          mkdir -p "$WORKDIR" "$CCACHE_DIR"
-          echo "WORKDIR=$WORKDIR" >> $GITHUB_ENV
-          echo "CCACHE_DIR=$CCACHE_DIR" >> $GITHUB_ENV
+          mkdir -p "$GITHUB_WORKSPACE/android"
+          mkdir -p "$RUNNER_TEMP/ccache"
         shell: bash
 
       - name: Cache ccache
@@ -99,83 +90,89 @@ jobs:
 
       - name: Optional: Clone device/kernel/vendor repos
         if: ${{ github.event.inputs.clone_device == 'true' }}
+        env:
+          DEVICE_REPO: ${{ github.event.inputs.device_repo }}
+          KERNEL_REPO: ${{ github.event.inputs.kernel_repo }}
+          VENDOR_REPO: ${{ github.event.inputs.vendor_repo }}
         run: |
           set -e
-          cd "$WORKDIR"
+          cd "$GITHUB_WORKSPACE/android"
           mkdir -p device/oneplus vendor/oneplus kernel/oneplus
-          if [ -n "${{ github.device_repo }}" ]; then
-            git clone --depth=1 "${{ github.event.inputs.device_repo }}" device/oneplus/ziti || true
+          if [ -n "$DEVICE_REPO" ]; then
+            git clone --depth=1 "$DEVICE_REPO" device/oneplus/ziti || true
           fi
-          if [ -n "${{ github.event.inputs.kernel_repo }}" ]; then
-            git clone --depth=1 "${{ github.event.inputs.kernel_repo }}" kernel/oneplus/sm7325 || true
+          if [ -n "$KERNEL_REPO" ]; then
+            git clone --depth=1 "$KERNEL_REPO" kernel/oneplus/sm7325 || true
           fi
-          if [ -n "${{ github.event.inputs.vendor_repo }}" ]; then
-            git clone --depth=1 "${{ github.event.inputs.vendor_repo }}" vendor/oneplus || true
+          if [ -n "$VENDOR_REPO" ]; then
+            git clone --depth=1 "$VENDOR_REPO" vendor/oneplus || true
           fi
         shell: bash
 
       - name: Repo init (manifest)
+        env:
+          MANIFEST_URL: ${{ github.event.inputs.manifest_url }}
+          MANIFEST_BRANCH: ${{ github.event.inputs.manifest_branch }}
         run: |
           set -e
-          cd "$WORKDIR"
-          repo init -u "${{ github.event.inputs.manifest_url }}" -b "${{ github.event.inputs.manifest_branch }}" --depth=1 || repo init -u "${{ github.event.inputs.manifest_url }}" -b "${{ github.event.inputs.manifest_branch }}"
+          cd "$GITHUB_WORKSPACE/android"
+          repo init -u "$MANIFEST_URL" -b "$MANIFEST_BRANCH" --depth=1 || repo init -u "$MANIFEST_URL" -b "$MANIFEST_BRANCH"
         shell: bash
 
-      - name: Repo sync (fetch sources)
+      - name: Repo sync
         run: |
           set -e
-          cd "$WORKDIR"
+          cd "$GITHUB_WORKSPACE/android"
           repo sync -c -j$(nproc) --no-tags --no-clone-bundle || repo sync -c -j2 --no-tags
         shell: bash
         timeout-minutes: 180
 
-      - name: Apply extra local patches (optional)
+      - name: Apply local device tree (optional)
         run: |
-          # If you keep a device tree inside the workflow repo, copy into Android tree
+          # If you keep the device tree inside this repo, copy it into synced tree
           if [ -d "$GITHUB_WORKSPACE/device/oneplus/ziti" ]; then
-            cp -r "$GITHUB_WORKSPACE/device/oneplus/ziti" "$WORKDIR/device/oneplus/ziti" || true
+            mkdir -p "$GITHUB_WORKSPACE/android/device/oneplus"
+            cp -r "$GITHUB_WORKSPACE/device/oneplus/ziti" "$GITHUB_WORKSPACE/android/device/oneplus/ziti" || true
           fi
         shell: bash
 
       - name: Build TWRP recovery
+        env:
+          LUNCH_TARGET: ${{ github.event.inputs.lunch_target }}
+          BUILD_TARGET: ${{ github.event.inputs.build_target }}
+          MAKE_JOBS: ${{ github.event.inputs.make_jobs }}
         run: |
           set -e
-          cd "$WORKDIR"
+          cd "$GITHUB_WORKSPACE/android"
           export USE_CCACHE=1
-          export CCACHE_DIR="$CCACHE_DIR"
+          export CCACHE_DIR="$RUNNER_TEMP/ccache"
           . build/envsetup.sh
-          lunch "${{ github.event.inputs.lunch_target }}"
-          if [ -n "${{ github.event.inputs.make_jobs }}" ]; then
-            JOBS_ARG="-j${{ github.event.inputs.make_jobs }}"
+          lunch "$LUNCH_TARGET"
+          if [ -n "$MAKE_JOBS" ]; then
+            JOBS_ARG="-j$MAKE_JOBS"
           else
             JOBS_ARG="-j$(nproc)"
           fi
           if command -v mka >/dev/null 2>&1; then
-            mka ${{ github.event.inputs.build_target }} ${JOBS_ARG}
+            mka "$BUILD_TARGET" $JOBS_ARG
           else
-            make ${{ github.event.inputs.build_target }} ${JOBS_ARG}
+            make "$BUILD_TARGET" $JOBS_ARG
           fi
         shell: bash
         timeout-minutes: 120
 
-      - name: Find and list recovery artifact
+      - name: List out artifacts
         run: |
-          set -e
-          cd "$WORKDIR"
+          cd "$GITHUB_WORKSPACE/android"
           find out -type f -iname "recovery*.img" -print || true
           find out -type f -iname "boot*.img" -print || true
         shell: bash
 
-      - name: Upload recovery artifact(s)
+      - name: Upload artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: twrp-recovery
           path: |
-            $GITHUB_WORKSPACE/android/out/**/recovery*.img
-            $GITHUB_WORKSPACE/android/out/**/boot*.img
-
-      - name: Print summary
-        run: |
-          echo "Build job finished. Artifacts (if produced) are uploaded as 'twrp-recovery'."
-        shell: bash
+            ${{ github.workspace }}/android/out/**/recovery*.img
+            ${{ github.workspace }}/android/out/**/boot*.img
