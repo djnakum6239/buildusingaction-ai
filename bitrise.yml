@@ -90,6 +90,13 @@ workflows:
               echo "TARGET_2ND_CPU_VARIANT := generic" >> BoardConfig.mk
               echo "TARGET_BOARD_PLATFORM := sm7325" >> BoardConfig.mk
             fi
+            # Force strip the obsolete macro lines if they exist anywhere in your files
+            sed -i '/PRODUCT_STATIC_BOOT_CONTROL_HAL/d' *.mk || true
+            
+            # Ensure the device configuration defines its product flag name clearly
+            if [ ! -f "AndroidProducts.mk" ]; then
+              echo 'PRODUCT_MAKEFILES := $(LOCAL_DIR)/twrp_ziti.mk' > AndroidProducts.mk
+            fi
 
     - script@1:
         title: Compile TWRP Image
