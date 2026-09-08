@@ -86,7 +86,17 @@ jobs:
           echo "PATH=$(dirname $(which repo)):$PATH" >> $GITHUB_ENV
         shell: bash
       
-        
+      - name: Reclaim Hidden Disks Storage
+        uses: easimon/maximize-build-space@master
+        with:
+          root-reserve-mb: 5120
+          swap-size-mb: 1024
+          remove-dotnet: 'true'
+          remove-android: 'true'
+          remove-haskell: 'true'
+          remove-codeql: 'true'
+          remove-docker-images: 'true'
+          
         
       - name: Prepare workspace
         run: mkdir -p "${WORKDIR}"
