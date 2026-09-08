@@ -77,23 +77,15 @@ jobs:
             unzip pkg-config lz4 u-boot-tools schedtool || true
         shell: bash
 
-      - name: Install repo tool
+      - name: Install repo tool natively
         run: |
-          mkdir -p "$HOME/bin"
-          # Download the stable, standalone repo launcher script directly from structural package sources
-          curl -L -sS -o "$HOME/bin/repo" https://githubusercontent.com
-          
-          # Quick sanity check: if it downloaded HTML by accident, overwrite it with a secondary reliable mirror
-          if grep -q "DOCTYPE html" "$HOME/bin/repo"; then
-            echo "Primary link blocked. Fetching via raw mirror..."
-            curl -L -sS -o "$HOME/bin/repo" https://googlesource.com
-            base64 -d "$HOME/bin/repo" > "$HOME/bin/repo.bin"
-            mv "$HOME/bin/repo.bin" "$HOME/bin/repo"
-          fi
-          
-          chmod a+x "$HOME/bin/repo"
-          echo "PATH=$HOME/bin:$PATH" >> $GITHUB_ENV
+          sudo apt-get update
+          sudo apt-get install -y repo
+          # Verify it is installed and map it to GITHUB_ENV path safely
+          which repo
+          echo "PATH=$(dirname $(which repo)):$PATH" >> $GITHUB_ENV
         shell: bash
+      
         
         
       - name: Prepare workspace
