@@ -6,7 +6,7 @@ app:
   - WORKDIR: "$BITRISE_DEPLOY_DIR/android"
   - MANIFEST_URL: "https://github.com/minimal-manifest-twrp/platform_manifest_twrp_aosp.git"
   - MANIFEST_BRANCH: "twrp-12.1"
-  - LUNCH_TARGET: "twrp_oneplus_ziti-eng"
+  - LUNCH_TARGET: "twrp_ziti-eng"
   - BUILD_TARGET: "recoveryimage"
   
 workflows:
