@@ -77,26 +77,62 @@ workflows:
             # we create an empty placeholder directory. Most modern TWRP trees bypass proprietary vendor 
             # files during recovery compilation by copying required blobs from the device dynamically.
             mkdir -p vendor/oneplus/ziti
-            cd device/oneplus/ziti
             
-            # If BoardConfig.mk is entirely blank or incomplete, stub out core recovery requirements
-            if [ ! -s "BoardConfig.mk" ]; then
-              echo "Re-generating broken BoardConfig structures..."
-              echo "TARGET_ARCH := arm64" > BoardConfig.mk
-              echo "TARGET_ARCH_VARIANT := arm8-a" >> BoardConfig.mk
-              echo "TARGET_CPU_VARIANT := generic" >> BoardConfig.mk
-              echo "TARGET_2ND_ARCH := arm" >> BoardConfig.mk
-              echo "TARGET_2ND_ARCH_VARIANT := armv7-a-neon" >> BoardConfig.mk
-              echo "TARGET_2ND_CPU_VARIANT := generic" >> BoardConfig.mk
-              echo "TARGET_BOARD_PLATFORM := sm7325" >> BoardConfig.mk
-            fi
-            # Force strip the obsolete macro lines if they exist anywhere in your files
-            sed -i '/PRODUCT_STATIC_BOOT_CONTROL_HAL/d' *.mk || true
+            # 2. FORCE HEAL THE MAKEFILE SYNTAX OVERRIDE
+            # Completely overwrite the broken device.mk with a clean, minimal TWRP structure
+            cat << 'EOF' > device/oneplus/ziti/device.mk
+            # Minimal clean device configuration for CPH2569 / ziti
+            LOCAL_PATH := device/oneplus/ziti
             
-            # Ensure the device configuration defines its product flag name clearly
-            if [ ! -f "AndroidProducts.mk" ]; then
-              echo 'PRODUCT_MAKEFILES := $(LOCAL_DIR)/twrp_ziti.mk' > AndroidProducts.mk
-            fi
+            # Dynamic partition handling parameters
+            PRODUCT_USE_DYNAMIC_PARTITIONS := true
+            
+            # Enable basic virtual A/B requirements safely without obsolete static HAL lines
+            PRODUCT_PACKAGES += \
+                android.hardware.boot@1.0-impl.recovery \
+                android.hardware.boot@1.0-service
+            EOF
+            
+            # Overwrite BoardConfig.mk if it is broken or missing structural headers
+            cat << 'EOF' > device/oneplus/ziti/BoardConfig.mk
+            # Structural variables for sm7325 recovery building
+            TARGET_ARCH := arm64
+            TARGET_ARCH_VARIANT := arm8-a
+            TARGET_CPU_VARIANT := generic
+            TARGET_2ND_ARCH := arm
+            TARGET_2ND_ARCH_VARIANT := armv7-a-neon
+            TARGET_2ND_CPU_VARIANT := generic
+            
+            TARGET_BOARD_PLATFORM := sm7325
+            
+            # Tells TWRP to handle modern virtual A/B system blocks safely
+            AB_OTA_UPDATER := true
+            BOARD_USES_RECOVERY_AS_BOOT := true
+            BOARD_HAS_NO_REAL_RECOVERY_PARTITION := true
+            
+            # Target layout properties
+            TW_THEME := portrait_hdpi
+            RECOVERY_SDCARD_ON_DATA := true
+            EOF
+            
+            # Ensure the product file points directly to the new minimal build definitions
+            cat << 'EOF' > device/oneplus/ziti/twrp_ziti.mk
+            $(call inherit-product, $(SRC_TARGET_DIR)/product/core_64bit.mk)
+            $(call inherit-product, $(SRC_TARGET_DIR)/product/minimal.mk)
+            $(call inherit-product, device/oneplus/ziti/device.mk)
+            
+            PRODUCT_DEVICE := ziti
+            PRODUCT_NAME := twrp_ziti
+            PRODUCT_BRAND := OnePlus
+            PRODUCT_MODEL := CPH2569
+            PRODUCT_MANUFACTURER := oneplus
+            EOF
+            
+            cat << 'EOF' > device/oneplus/ziti/AndroidProducts.mk
+            PRODUCT_MAKEFILES := $(LOCAL_DIR)/twrp_ziti.mk
+            COMMON_LUNCH_CHOICES := twrp_ziti-eng
+            EOF
+            
 
     - script@1:
         title: Compile TWRP Image
