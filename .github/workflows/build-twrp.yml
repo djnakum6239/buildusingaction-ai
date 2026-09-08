@@ -39,30 +39,33 @@ on:
         description: 'Parallel jobs for make (leave blank for runner cores)'
         required: false
         default: ''
-
+      
 jobs:
   build:
     runs-on: ubuntu-22.04
     env:
       WORKDIR: ${{ github.workspace }}/android
-      CCACHE_DIR: ${{ github.workspace }}/ccache
-      
+
     steps:
       - name: Checkout workflow repo
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+
+      - name: Maximize Runner Disk Space
+        run: |
+          echo "=== Disk space BEFORE cleanup ==="
+          df -h
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/boost
+          sudo rm -rf /etc/apt/sources.list.d/* /var/lib/apt/lists/*
+          docker rmi $(docker images -q) || true
+          sudo apt-get clean
+          echo "=== Disk space AFTER cleanup ==="
+          df -h
 
       - name: Set up Java (OpenJDK 11)
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '11'
-
-      - name: Free Disk Space (GitHub Actions runners are space-limited)
-        run: |
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc
-          sudo apt-get clean
 
       - name: Install Ubuntu build dependencies
         run: |
@@ -71,122 +74,78 @@ jobs:
             git-core gnupg flex bison build-essential zip curl zlib1g-dev \
             libssl-dev libncurses5 libncurses5-dev python3 python3-pip \
             python-is-python3 lzop bc g++-multilib gcc-multilib rsync \
-            unzip pkg-config ccache lz4 u-boot-tools schedtool || true
-          sudo apt-get clean
+            unzip pkg-config lz4 u-boot-tools schedtool || true
         shell: bash
 
       - name: Install repo tool
         run: |
           mkdir -p "$HOME/bin"
-          curl -sS -o "$HOME/bin/repo" https://storage.googleapis.com/git-repo-downloads/repo
+          curl -sS -o "$HOME/bin/repo" https://googleapis.com
           chmod a+x "$HOME/bin/repo"
           echo "PATH=$HOME/bin:$PATH" >> $GITHUB_ENV
         shell: bash
 
       - name: Prepare workspace
-        run: |
-          mkdir -p "${WORKDIR}"
-          mkdir -p "${CCACHE_DIR}"
-        shell: bash
-
-      - name: Cache ccache
-        uses: actions/cache@v4
-        with:
-          path: ${{ env.CCACHE_DIR }}
-          key: ccache-${{ runner.os }}-twrp-${{ github.sha }}
-          restore-keys: |
-            ccache-${{ runner.os }}-twrp-
-
-      - name: Configure ccache
-        run: |
-          ccache -M 30G || true
-          echo "USE_CCACHE=1" >> $GITHUB_ENV
-        shell: bash
+        run: mkdir -p "${WORKDIR}"
 
       - name: Repo init (manifest)
         env:
           MANIFEST_URL: ${{ github.event.inputs.manifest_url }}
           MANIFEST_BRANCH: ${{ github.event.inputs.manifest_branch }}
         run: |
-          set -e
           cd "${WORKDIR}"
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
-          repo init -u "$MANIFEST_URL" -b "$MANIFEST_BRANCH" --depth=1 || repo init -u "$MANIFEST_URL" -b "$MANIFEST_BRANCH"
+          repo init -u "$MANIFEST_URL" -b "$MANIFEST_BRANCH" --depth=1
         shell: bash
 
-      - name: Repo sync (fetch sources)
+      - name: Repo sync (Shallow & Force Clean)
         run: |
-          set -e
           cd "${WORKDIR}"
-          repo sync -c -j$(nproc) --no-tags --no-clone-bundle || repo sync -c -j2 --no-tags
+          # Stripping extra tags and bundle clones saves massive storage overhead
+          repo sync -c -j$(nproc) --no-tags --no-clone-bundle --force-sync
         shell: bash
-        timeout-minutes: 180
+        timeout-minutes: 120
 
-      - name: Clone device/kernel/vendor repos (Post-Sync)
+      - name: Clone device trees (Post-Sync)
         if: ${{ github.event.inputs.clone_device == 'true' }}
         env:
           DEVICE_REPO: ${{ github.event.inputs.device_repo }}
           KERNEL_REPO: ${{ github.event.inputs.kernel_repo }}
           VENDOR_REPO: ${{ github.event.inputs.vendor_repo }}
         run: |
-          set -e
           cd "${WORKDIR}"
-          
-          # Clean up any default manifests placeholders if they exist to prevent conflicts
           rm -rf device/oneplus/ziti vendor/oneplus/ziti kernel/oneplus/sm7325
-          
           mkdir -p device/oneplus vendor/oneplus kernel/oneplus
           
-          if [ -n "$DEVICE_REPO" ]; then
-            git clone --depth=1 "$DEVICE_REPO" device/oneplus/ziti
-          fi
-          if [ -n "$KERNEL_REPO" ]; then
-            git clone --depth=1 "$KERNEL_REPO" kernel/oneplus/sm7325
-          fi
-          if [ -n "$VENDOR_REPO" ]; then
-            git clone --depth=1 "$VENDOR_REPO" vendor/oneplus/ziti
-          fi
-        shell: bash
-
-      - name: Apply extra local patches from runner repo
-        run: |
-          if [ -d "${{ github.workspace }}/device/oneplus/ziti" ]; then
-            mkdir -p "${WORKDIR}/device/oneplus"
-            cp -r "${{ github.workspace }}/device/oneplus/ziti" "${WORKDIR}/device/oneplus/ziti" || true
-          fi
+          if [ -n "$DEVICE_REPO" ]; then git clone --depth=1 "$DEVICE_REPO" device/oneplus/ziti; fi
+          if [ -n "$KERNEL_REPO" ]; then git clone --depth=1 "$KERNEL_REPO" kernel/oneplus/sm7325; fi
+          if [ -n "$VENDOR_REPO" ]; then git clone --depth=1 "$VENDOR_REPO" vendor/oneplus/ziti; fi
         shell: bash
 
       - name: Build TWRP recovery
         env:
           LUNCH_TARGET: ${{ github.event.inputs.lunch_target }}
           BUILD_TARGET: ${{ github.event.inputs.build_target }}
-          MAKE_JOBS: ${{ github.event.inputs.make_jobs }}
         run: |
-          set -e
           cd "${WORKDIR}"
-          export USE_CCACHE=1
-          export CCACHE_DIR="${CCACHE_DIR}"
+          # Explicitly disabling ccache to preserve physical storage blocks
+          export USE_CCACHE=0
           
           . build/envsetup.sh
           lunch "$LUNCH_TARGET"
           
-          # Determine CPU core assignment dynamically if empty
-          if [ -z "$MAKE_JOBS" ]; then
-            JOBS=$(nproc)
-          else
-            JOBS="$MAKE_JOBS"
-          fi
-          
-          make -j"$JOBS" "$BUILD_TARGET"
+          # Force the compiler to clean up intermediary targets aggressively if possible
+          make -j$(nproc) "$BUILD_TARGET"
         shell: bash
 
       - name: Upload Recovery Image Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: TWRP-Recovery-${{ github.run_id }}
+          name: TWRP-Recovery-CPH2569
           path: |
             ${{ env.WORKDIR }}/out/target/product/ziti/*.img
             ${{ env.WORKDIR }}/out/target/product/ziti/*.zip
           if-no-files-found: error
           
+
