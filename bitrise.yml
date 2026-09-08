@@ -30,6 +30,12 @@ workflows:
               libssl-dev libncurses6 libncurses-dev python3 python3-pip \
               python-is-python3 lzop bc g++-multilib gcc-multilib rsync \
               unzip pkg-config lz4 u-boot-tools schedtool repo
+              
+            # Setup an isolated Python environment to run the device tree generator if needed
+            python3 -m venv $HOME/twrp_env
+            source $HOME/twrp_env/bin/activate
+            pip3 install --upgrade pip
+            pip3 install twrpdtgen || true
             
             mkdir -p "$WORKDIR"
     
@@ -71,6 +77,19 @@ workflows:
             # we create an empty placeholder directory. Most modern TWRP trees bypass proprietary vendor 
             # files during recovery compilation by copying required blobs from the device dynamically.
             mkdir -p vendor/oneplus/ziti
+            cd device/oneplus/ziti
+            
+            # If BoardConfig.mk is entirely blank or incomplete, stub out core recovery requirements
+            if [ ! -s "BoardConfig.mk" ]; then
+              echo "Re-generating broken BoardConfig structures..."
+              echo "TARGET_ARCH := arm64" > BoardConfig.mk
+              echo "TARGET_ARCH_VARIANT := arm8-a" >> BoardConfig.mk
+              echo "TARGET_CPU_VARIANT := generic" >> BoardConfig.mk
+              echo "TARGET_2ND_ARCH := arm" >> BoardConfig.mk
+              echo "TARGET_2ND_ARCH_VARIANT := armv7-a-neon" >> BoardConfig.mk
+              echo "TARGET_2ND_CPU_VARIANT := generic" >> BoardConfig.mk
+              echo "TARGET_BOARD_PLATFORM := sm7325" >> BoardConfig.mk
+            fi
 
     - script@1:
         title: Compile TWRP Image
