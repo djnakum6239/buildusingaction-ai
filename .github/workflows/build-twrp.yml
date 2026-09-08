@@ -80,11 +80,22 @@ jobs:
       - name: Install repo tool
         run: |
           mkdir -p "$HOME/bin"
-          curl -sS -o "$HOME/bin/repo" https://googleapis.com
+          # -L forces curl to follow redirects, using Google's official source code pool
+          curl -L -sS -o "$HOME/bin/repo" https://googlesource.com
+          
+          # The official Google URL returns base64 text, we decode it directly to binary
+          if grep -q "<!DOCTYPE html>" "$HOME/bin/repo"; then
+            echo "Fallback download triggered..."
+            curl -L -sS -o "$HOME/bin/repo" https://googleapis.com
+          else
+            base64 -d "$HOME/bin/repo" > "$HOME/bin/repo.bin"
+            mv "$HOME/bin/repo.bin" "$HOME/bin/repo"
+          fi
+          
           chmod a+x "$HOME/bin/repo"
           echo "PATH=$HOME/bin:$PATH" >> $GITHUB_ENV
         shell: bash
-
+        
       - name: Prepare workspace
         run: mkdir -p "${WORKDIR}"
 
