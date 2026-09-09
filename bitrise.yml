@@ -106,7 +106,7 @@ workflows:
               sed -i '/vendor\/oneplus\/dolby/d' "$makefile"
               sed -i '/hardware_dolby/d' "$makefile"
               sed -i '/hardware\/dolby/d' "$makefile"
-              
+            done
               # Purge all external SEPolicy dependencies
               sed -i '/sepolicy/Id' "$makefile"
               
