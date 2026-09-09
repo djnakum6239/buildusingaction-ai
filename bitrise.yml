@@ -68,6 +68,31 @@ workflows:
             git clone --depth=1 https://github.com/ziti-resources/device_oneplus_sm8350-common.git device/oneplus/sm8350-common
             git clone --depth=1 https://gitlab.com/ziti-resources/vendor_oneplus_sm8350-common -b fourteen vendor/oneplus/sm8350-common
             
+            echo "Bypassing specified ROM-specific dependencies..."
+            
+            # Find and completely remove lines mentioning the 5 targets inside your device repositories
+            find device/oneplus/ -type f -name "*.mk" -o -name "*.bp" | while read -r makefile; do
+              # 1. Bypass hardware_oplus
+              sed -i '/hardware_oplus/d' "$makefile"
+              sed -i '/hardware\/oplus/d' "$makefile"
+              
+              # 2. Bypass vendor_oplus_camera
+              sed -i '/vendor_oplus_camera/d' "$makefile"
+              sed -i '/vendor\/oplus\/camera/d' "$makefile"
+              
+              # 3. Bypass vendor_oneplus_ir
+              sed -i '/vendor_oneplus_ir/d' "$makefile"
+              sed -i '/vendor\/oneplus\/ir/d' "$makefile"
+              
+              # 4. Bypass vendor_oneplus_dolby
+              sed -i '/vendor_oneplus_dolby/d' "$makefile"
+              sed -i '/vendor\/oneplus\/dolby/d' "$makefile"
+              
+              # 5. Bypass hardware_dolby
+              sed -i '/hardware_dolby/d' "$makefile"
+              sed -i '/hardware\/dolby/d' "$makefile"
+            done
+            
             # Automated Product File Syntax Normalization
             cd device/oneplus/ziti
             if [ -f "AndroidProducts.mk" ]; then
