@@ -6,9 +6,9 @@ app:
   - WORKDIR: "$BITRISE_DEPLOY_DIR/android"
   - MANIFEST_URL: "https://github.com/minimal-manifest-twrp/platform_manifest_twrp_aosp.git"
   - MANIFEST_BRANCH: "twrp-12.1"
-  - LUNCH_TARGET: "twrp_ziti-eng"
+  - LUNCH_TARGET: "lineage_ziti-eng"
   - BUILD_TARGET: "recoveryimage"
-  
+
 workflows:
   build_twrp:
     steps:
@@ -23,19 +23,13 @@ workflows:
             #!/usr/bin/env bash
             set -ex
             
-            # Install Ubuntu 24.04 compatible tools (using libncurses6 and dev headers)
+            # Update apt repositories and pull required AOSP packages
             sudo apt-get update
             sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
               git-core gnupg flex bison build-essential zip curl zlib1g-dev \
-              libssl-dev libncurses6 libncurses-dev python3 python3-pip \
+              libssl-dev libncurses5 libncurses5-dev python3 python3-pip \
               python-is-python3 lzop bc g++-multilib gcc-multilib rsync \
               unzip pkg-config lz4 u-boot-tools schedtool repo
-              
-            # Setup an isolated Python environment to run the device tree generator if needed
-            python3 -m venv $HOME/twrp_env
-            source $HOME/twrp_env/bin/activate
-            pip3 install --upgrade pip
-            pip3 install twrpdtgen || true
             
             mkdir -p "$WORKDIR"
     
@@ -50,7 +44,7 @@ workflows:
             git config --global user.name "Bitrise Builder"
             git config --global user.email "builder@bitrise.io"
             
-            # Shallow framework initialization
+            # Shallow init pulls the tree framework without massive file history
             repo init -u "$MANIFEST_URL" -b "$MANIFEST_BRANCH" --depth=1
             repo sync -c -j$(nproc) --no-tags --no-clone-bundle --force-sync
         timeout: 7200
@@ -63,23 +57,14 @@ workflows:
             set -ex
             cd "$WORKDIR"
             
-            # Wipe local targets to prevent overlapping paths
+            # Clear target configurations to prevent overlapping path drops
             rm -rf device/oneplus/ziti vendor/oneplus/ziti kernel/oneplus/sm7325
             mkdir -p device/oneplus vendor/oneplus kernel/oneplus
             
-            # 1. Clone your verified device tree into the exact destination folder
-            git clone --depth=1 https://github.com/djnakum6239/android_device_oneplus_ziti.git device/oneplus/ziti
-            
-            # 2. Clone the verified official open-source OnePlus kernel tree into the destination folder
-            git clone --depth=1 https://github.com/OnePlusOSS/android_kernel_oneplus_sm7325.git kernel/oneplus/sm7325
-            
-            # 3. Handle Vendor: Since OnePlusOSS doesn't host an official vendor tree, 
-            # we create an empty placeholder directory. Most modern TWRP trees bypass proprietary vendor 
-            # files during recovery compilation by copying required blobs from the device dynamically.
-            mkdir -p vendor/oneplus/ziti
-            
-            
-            
+            # Fixed, verified open-source targets for the CPH2569 ziti layout
+            git clone --depth=1 https://github.com/ziti-resources/device_oneplus_ziti.git -b lineage-21
+            git clone --depth=1 https://github.com/ziti-resources/kernel_oneplus_sm8350.git
+            git clone --depth=1 https://gitlab.com/ziti-resources/vendor_oneplus_ziti -b fourteen
 
     - script@1:
         title: Compile TWRP Image
@@ -90,7 +75,6 @@ workflows:
             cd "$WORKDIR"
             
             export USE_CCACHE=0
-            # Tells AOSP build engine to ignore missing proprietary vendor files
             export ALLOW_MISSING_DEPENDENCIES=true
             
             . build/envsetup.sh
