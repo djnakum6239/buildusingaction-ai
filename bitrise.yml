@@ -68,15 +68,12 @@ workflows:
             git clone --depth=1 https://github.com/ziti-resources/device_oneplus_sm8350-common.git device/oneplus/sm8350-common
             git clone --depth=1 https://gitlab.com/ziti-resources/vendor_oneplus_sm8350-common -b fourteen vendor/oneplus/sm8350-common
             
-            echo "Rewriting makefiles to contain ONLY essential TWRP recovery configs..."
+            echo "Stripping out broken ROM includes from common configurations..."
             
             # A. Overwrite the main product makefile with minimalist targets
             cat << 'EOF' > device/oneplus/ziti/voltage_ziti.mk
-            # Inherit from minimum core aosp setup for recoveries
             $(call inherit-product, $(SRC_TARGET_DIR)/product/aosp_base.mk)
             $(call inherit-product, $(SRC_TARGET_DIR)/product/core_64_bit.mk)
-            
-            # Inherit from your device specific tree layout (skipping common ROM configs)
             $(call inherit-product, device/oneplus/ziti/device.mk)
             
             PRODUCT_NAME := voltage_ziti
@@ -86,8 +83,19 @@ workflows:
             PRODUCT_MANUFACTURER := oneplus
             EOF
             
-            # B. Overwrite the BoardConfig.mk to remove hardware/vendor/ROM loops
-            # Note: We retain core architecture variables and inherit ONLY the base common config.
+            # B. Empty out device.mk and common.mk to leave only the basic identity variables
+            # This completely kills the include chain calling Dolby or any other vendor frameworks.
+            cat << 'EOF' > device/oneplus/ziti/device.mk
+            # Minimal device configuration for TWRP
+            PRODUCT_SOONG_NAMESPACES += device/oneplus/ziti
+            EOF
+            
+            cat << 'EOF' > device/oneplus/sm8350-common/common.mk
+            # Minimal common configuration for TWRP
+            PRODUCT_SOONG_NAMESPACES += device/oneplus/sm8350-common
+            EOF
+            
+            # C. Overwrite the BoardConfig.mk to keep ONLY core hardware parameters
             cat << 'EOF' > device/oneplus/ziti/BoardConfig.mk
             TARGET_BOARD_PLATFORM := lahaina
             TARGET_BOOTLOADER_BOARD_NAME := ziti
@@ -105,13 +113,13 @@ workflows:
             TARGET_2ND_CPU_ABI2 := armeabi
             TARGET_2ND_CPU_VARIANT := generic
             
-            # Include minimal recovery parameters from the common tree
+            # Include basic parameters from common board config
             include device/oneplus/sm8350-common/BoardConfigCommon.mk
             
-            # Kernel settings needed for the prebuilt/compiled boot framework
             TARGET_KERNEL_ARCH := arm64
             TARGET_KERNEL_HEADER_ARCH := arm64
             EOF
+            
             
             # Automated Product File Syntax Normalization
             cd device/oneplus/ziti
