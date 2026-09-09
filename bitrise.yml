@@ -99,6 +99,9 @@ workflows:
               echo "Purging all external SEPolicy dependencies..."
               sed -i '/sepolicy/Id' device/oneplus/sm8350-common/BoardConfigCommon.mk
               
+              echo "FIXED: Swapping unsupported armv8-a-dotprod variant architecture parameters to armv8-a..."
+              sed -i 's/armv8-a-dotprod/armv8-a/g' device/oneplus/sm8350-common/BoardConfigCommon.mk
+                            
               echo "Fixing illegal armv8-2a architecture variables to armv8-a..."
               sed -i 's/armv8-2a/armv8-a/g' device/oneplus/sm8350-common/BoardConfigCommon.mk
             fi
