@@ -94,14 +94,26 @@ workflows:
             PRODUCT_SOONG_NAMESPACES += device/oneplus/sm8350-common
             EOF
             
-            # Purge all external SEPolicy dependencies
+            # FIXED: Corrected the broken shell syntax engine loop structure here
+            find device/oneplus/ -type f -name "*.mk" -o -name "*.bp" | while read -r makefile; do
+              # Clear out hardware layers and explicit dependencies
+              sed -i '/hardware\//d' "$makefile"
+              sed -i '/vendor_oplus_camera/d' "$makefile"
+              sed -i '/vendor\/oplus\/camera/d' "$makefile"
+              sed -i '/vendor_oneplus_ir/d' "$makefile"
+              sed -i '/vendor\/oneplus\/ir/d' "$makefile"
+              sed -i '/vendor_oneplus_dolby/d' "$makefile"
+              sed -i '/vendor\/oneplus\/dolby/d' "$makefile"
+              sed -i '/hardware_dolby/d' "$makefile"
+              sed -i '/hardware\/dolby/d' "$makefile"
+              
+              # Purge all external SEPolicy dependencies
               sed -i '/sepolicy/Id' "$makefile"
               
               # RECURSIVE ARCHITECTURE FIX: Swaps unsupported strings everywhere under device/oneplus/
               sed -i 's/armv8-a-dotprod/armv8-a/g' "$makefile"
               sed -i 's/armv8-2a/armv8-a/g' "$makefile"
             done
-              
             
             # D. Overwrite the BoardConfig.mk to keep ONLY core hardware parameters
             cat << 'EOF' > device/oneplus/ziti/BoardConfig.mk
@@ -136,7 +148,6 @@ workflows:
               echo "COMMON_LUNCH_CHOICES := voltage_ziti-ap2a-eng" >> AndroidProducts.mk
             fi
 
-            
     - script@1:
         title: Compile TWRP Image
         inputs:
