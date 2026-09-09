@@ -6,7 +6,7 @@ app:
   - WORKDIR: "$BITRISE_DEPLOY_DIR/android"
   - MANIFEST_URL: "https://github.com/minimal-manifest-twrp/platform_manifest_twrp_aosp.git"
   - MANIFEST_BRANCH: "twrp-14.1"
-  - LUNCH_TARGET: "voltage_ziti-ap2a-eng"
+  - LUNCH_TARGET: "lineage_ziti-ap2a-eng"
   - BUILD_TARGET: "recoveryimage"
 
 workflows:
@@ -62,21 +62,21 @@ workflows:
             mkdir -p device/oneplus vendor/oneplus kernel/oneplus
             
             # Fixed, verified open-source targets for the CPH2569 ziti layout
-            git clone --depth=1 https://github.com/ziti-resources/device_oneplus_ziti.git device/oneplus/ziti
-            git clone --depth=1 https://github.com/ziti-resources/kernel_oneplus_sm8350.git kernel/oneplus/sm8350
+            git clone --depth=1 https://github.com/ziti-resources/device_oneplus_ziti.git -b lineage-21 device/oneplus/ziti
+            git clone --depth=1 https://github.com/ziti-resources/kernel_oneplus_sm8350.git -b lineage-21 kernel/oneplus/sm8350
             git clone --depth=1 https://gitlab.com/ziti-resources/vendor_oneplus_ziti -b fourteen vendor/oneplus/ziti
-            git clone --depth=1 https://github.com/ziti-resources/device_oneplus_sm8350-common.git device/oneplus/sm8350-common
+            git clone --depth=1 https://github.com/ziti-resources/device_oneplus_sm8350-common.git -b lineage-21 device/oneplus/sm8350-common
             git clone --depth=1 https://gitlab.com/ziti-resources/vendor_oneplus_sm8350-common -b fourteen vendor/oneplus/sm8350-common
             
             echo "Stripping out broken ROM includes from common configurations..."
             
             # A. Overwrite the main product makefile with minimalist targets
-            cat << 'EOF' > device/oneplus/ziti/voltage_ziti.mk
+            cat << 'EOF' > device/oneplus/ziti/lineage_ziti.mk
             $(call inherit-product, $(SRC_TARGET_DIR)/product/aosp_base.mk)
             $(call inherit-product, $(SRC_TARGET_DIR)/product/core_64_bit.mk)
             $(call inherit-product, device/oneplus/ziti/device.mk)
             
-            PRODUCT_NAME := voltage_ziti
+            PRODUCT_NAME := lineage_ziti
             PRODUCT_DEVICE := ziti
             PRODUCT_BRAND := OnePlus
             PRODUCT_MODEL := OnePlus Nord CE3 5G
@@ -144,8 +144,8 @@ workflows:
             cd device/oneplus/ziti
             if [ -f "AndroidProducts.mk" ]; then
               echo "Fixing lunch definition choices..."
-              echo "PRODUCT_MAKEFILES := \$(LOCAL_DIR)/voltage_ziti.mk" > AndroidProducts.mk
-              echo "COMMON_LUNCH_CHOICES := voltage_ziti-ap2a-eng" >> AndroidProducts.mk
+              echo "PRODUCT_MAKEFILES := \$(LOCAL_DIR)/lineage_ziti.mk" > AndroidProducts.mk
+              echo "COMMON_LUNCH_CHOICES := lineage_ziti-ap2a-eng" >> AndroidProducts.mk
             fi
 
     - script@1:
