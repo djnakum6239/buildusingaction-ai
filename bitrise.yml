@@ -6,7 +6,7 @@ app:
   - WORKDIR: "$BITRISE_DEPLOY_DIR/android"
   - MANIFEST_URL: "https://github.com/minimal-manifest-twrp/platform_manifest_twrp_aosp.git"
   - MANIFEST_BRANCH: "twrp-14.1"
-  - LUNCH_TARGET: "voltage_ziti-trunk_staging-eng"
+  - LUNCH_TARGET: "voltage_ziti-ap2a-eng"
   - BUILD_TARGET: "recoveryimage"
 
 workflows:
@@ -133,7 +133,7 @@ workflows:
             if [ -f "AndroidProducts.mk" ]; then
               echo "Fixing lunch definition choices..."
               echo "PRODUCT_MAKEFILES := \$(LOCAL_DIR)/voltage_ziti.mk" > AndroidProducts.mk
-              echo "COMMON_LUNCH_CHOICES := voltage_ziti-trunk_staging-eng" >> AndroidProducts.mk
+              echo "COMMON_LUNCH_CHOICES := voltage_ziti-ap2a-eng" >> AndroidProducts.mk
             fi
 
             
