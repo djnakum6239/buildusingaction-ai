@@ -122,8 +122,8 @@ workflows:
             
             # C. BYPASS ROM SEPOLICY DEPENDENCY: Wipe out custom Voltage OS sepolicy entries
             if [ -f "device/oneplus/sm8350-common/BoardConfigCommon.mk" ]; then
-              echo "Bypassing Voltage OS sepolicy dependencies..."
-              sed -i '/device\/voltage\/sepolicy/d' device/oneplus/sm8350-common/BoardConfigCommon.mk
+              echo "Purging all external SEPolicy dependencies..."
+              sed -i '/sepolicy/Id' device/oneplus/sm8350-common/BoardConfigCommon.mk
             fi
             
             # Automated Product File Syntax Normalization
