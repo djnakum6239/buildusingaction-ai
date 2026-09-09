@@ -135,14 +135,6 @@ workflows:
               echo "COMMON_LUNCH_CHOICES := voltage_ziti-eng" >> AndroidProducts.mk
             fi
             
-            # Automated Product File Syntax Normalization
-            cd device/oneplus/ziti
-            if [ -f "AndroidProducts.mk" ]; then
-              echo "Fixing lunch definition choices..."
-              echo "PRODUCT_MAKEFILES := \$(LOCAL_DIR)/voltage_ziti.mk" > AndroidProducts.mk
-              echo "COMMON_LUNCH_CHOICES := voltage_ziti-eng voltage_ziti-userdebug" >> AndroidProducts.mk
-            fi
-            
     - script@1:
         title: Compile TWRP Image
         inputs:
