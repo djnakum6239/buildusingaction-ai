@@ -5,7 +5,7 @@ app:
   envs:
   - WORKDIR: "$BITRISE_DEPLOY_DIR/android"
   - MANIFEST_URL: "https://github.com/minimal-manifest-twrp/platform_manifest_twrp_aosp.git"
-  - MANIFEST_BRANCH: "twrp-12.1"
+  - MANIFEST_BRANCH: "twrp-14.1"
   - LUNCH_TARGET: "voltage_ziti-eng"
   - BUILD_TARGET: "recoveryimage"
 
