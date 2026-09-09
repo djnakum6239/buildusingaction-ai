@@ -110,12 +110,16 @@ workflows:
               # Purge all external SEPolicy dependencies
               sed -i '/sepolicy/Id' "$makefile"
               
-              # RECURSIVE ARCHITECTURE FIX: Swaps unsupported strings everywhere under device/oneplus/
-              sed -i 's/armv8-a-dotprod/armv8-a/g' "$makefile"
-              sed -i 's/armv8-2a/armv8-a/g' "$makefile"
-            done
+              # D. System-wide alias/stub: provide armv8-a-dotprod.mk pointing to armv8-a.mk
+            ARCH_DIR="build/make/core/combo/arch/arm64"
+            if [ -d "$ARCH_DIR" ]; then
+              if [ -f "$ARCH_DIR/armv8-a.mk" ] && [ ! -f "$ARCH_DIR/armv8-a-dotprod.mk" ]; then
+                echo "Aliasing armv8-a-dotprod.mk to armv8-a.mk..."
+                cp "$ARCH_DIR/armv8-a.mk" "$ARCH_DIR/armv8-a-dotprod.mk"
+              fi
+            fi
             
-            # D. Overwrite the BoardConfig.mk to keep ONLY core hardware parameters
+            # E. Overwrite the BoardConfig.mk to keep ONLY core hardware parameters
             cat << 'EOF' > device/oneplus/ziti/BoardConfig.mk
             TARGET_BOARD_PLATFORM := lahaina
             TARGET_BOOTLOADER_BOARD_NAME := ziti
