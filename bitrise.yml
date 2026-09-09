@@ -58,13 +58,15 @@ workflows:
             cd "$WORKDIR"
             
             # Clear target configurations to prevent overlapping path drops
-            rm -rf device/oneplus/ziti vendor/oneplus/ziti kernel/oneplus/sm7325
+            rm -rf device/oneplus/ziti vendor/oneplus/ziti kernel/oneplus/sm8350 device/oneplus/sm8350-common vendor/oneplus/sm8350-common
             mkdir -p device/oneplus vendor/oneplus kernel/oneplus
             
             # Fixed, verified open-source targets for the CPH2569 ziti layout
             git clone --depth=1 https://github.com/ziti-resources/device_oneplus_ziti.git device/oneplus/ziti
             git clone --depth=1 https://github.com/ziti-resources/kernel_oneplus_sm8350.git kernel/oneplus/sm8350
             git clone --depth=1 https://gitlab.com/ziti-resources/vendor_oneplus_ziti -b fourteen vendor/oneplus/ziti
+            git clone --depth=1 https://github.com/ziti-resources/device_oneplus_sm8350-common.git device/oneplus/sm8350-common
+            git clone --depth=1 https://gitlab.com/ziti-resources/vendor_oneplus_sm8350-common -b fourteen vendor/oneplus/sm8350-common
             
             # Automated Product File Syntax Normalization
             cd device/oneplus/ziti
