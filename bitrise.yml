@@ -95,7 +95,7 @@ workflows:
             EOF
             
             # FIXED: Corrected the broken shell syntax engine loop structure here
-            find device/oneplus/ -type f -name "*.mk" -o -name "*.bp" | while read -r makefile; do
+            find device/oneplus/ vendor/oneplus/ -type f -name "*.mk" -o -name "*.bp" | while read -r makefile; do
               # Clear out hardware layers and explicit dependencies
               sed -i '/hardware\//d' "$makefile"
               sed -i '/vendor_oplus_camera/d' "$makefile"
