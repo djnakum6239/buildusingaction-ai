@@ -68,30 +68,50 @@ workflows:
             git clone --depth=1 https://github.com/ziti-resources/device_oneplus_sm8350-common.git device/oneplus/sm8350-common
             git clone --depth=1 https://gitlab.com/ziti-resources/vendor_oneplus_sm8350-common -b fourteen vendor/oneplus/sm8350-common
             
-            echo "Bypassing specified ROM-specific dependencies..."
+            echo "Rewriting makefiles to contain ONLY essential TWRP recovery configs..."
             
-            # Find and completely remove lines mentioning the 5 targets inside your device repositories
-            find device/oneplus/ -type f -name "*.mk" -o -name "*.bp" | while read -r makefile; do
-              # 1. Bypass hardware_oplus
-              sed -i '/hardware_oplus/d' "$makefile"
-              sed -i '/hardware\/oplus/d' "$makefile"
-              
-              # 2. Bypass vendor_oplus_camera
-              sed -i '/vendor_oplus_camera/d' "$makefile"
-              sed -i '/vendor\/oplus\/camera/d' "$makefile"
-              
-              # 3. Bypass vendor_oneplus_ir
-              sed -i '/vendor_oneplus_ir/d' "$makefile"
-              sed -i '/vendor\/oneplus\/ir/d' "$makefile"
-              
-              # 4. Bypass vendor_oneplus_dolby
-              sed -i '/vendor_oneplus_dolby/d' "$makefile"
-              sed -i '/vendor\/oneplus\/dolby/d' "$makefile"
-              
-              # 5. Bypass hardware_dolby
-              sed -i '/hardware_dolby/d' "$makefile"
-              sed -i '/hardware\/dolby/d' "$makefile"
-            done
+            # A. Overwrite the main product makefile with minimalist targets
+            cat << 'EOF' > device/oneplus/ziti/voltage_ziti.mk
+            # Inherit from minimum core aosp setup for recoveries
+            $(call inherit-product, $(SRC_TARGET_DIR)/product/aosp_base.mk)
+            $(call inherit-product, $(SRC_TARGET_DIR)/product/core_64_bit.mk)
+            
+            # Inherit from your device specific tree layout (skipping common ROM configs)
+            $(call inherit-product, device/oneplus/ziti/device.mk)
+            
+            PRODUCT_NAME := voltage_ziti
+            PRODUCT_DEVICE := ziti
+            PRODUCT_BRAND := OnePlus
+            PRODUCT_MODEL := OnePlus Nord CE3 5G
+            PRODUCT_MANUFACTURER := oneplus
+            EOF
+            
+            # B. Overwrite the BoardConfig.mk to remove hardware/vendor/ROM loops
+            # Note: We retain core architecture variables and inherit ONLY the base common config.
+            cat << 'EOF' > device/oneplus/ziti/BoardConfig.mk
+            TARGET_BOARD_PLATFORM := lahaina
+            TARGET_BOOTLOADER_BOARD_NAME := ziti
+            
+            # Architecture Setup
+            TARGET_ARCH := arm64
+            TARGET_ARCH_VARIANT := armv8-a
+            TARGET_CPU_ABI := arm64-v8a
+            TARGET_CPU_ABI2 := 
+            TARGET_CPU_VARIANT := generic
+            
+            TARGET_2ND_ARCH := arm
+            TARGET_2ND_ARCH_VARIANT := armv8-a
+            TARGET_2ND_CPU_ABI := armeabi-v7a
+            TARGET_2ND_CPU_ABI2 := armeabi
+            TARGET_2ND_CPU_VARIANT := generic
+            
+            # Include minimal recovery parameters from the common tree
+            include device/oneplus/sm8350-common/BoardConfigCommon.mk
+            
+            # Kernel settings needed for the prebuilt/compiled boot framework
+            TARGET_KERNEL_ARCH := arm64
+            TARGET_KERNEL_HEADER_ARCH := arm64
+            EOF
             
             # Automated Product File Syntax Normalization
             cd device/oneplus/ziti
