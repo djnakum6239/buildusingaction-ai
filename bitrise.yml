@@ -27,7 +27,7 @@ workflows:
             sudo apt-get update
             sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
               git-core gnupg flex bison build-essential zip curl zlib1g-dev \
-              libssl-dev libncurses6 libncurses6-dev python3 python3-pip \
+              libssl-dev libncurses6 libncurses-dev python3 python3-pip \
               python-is-python3 lzop bc g++-multilib gcc-multilib rsync \
               unzip pkg-config lz4 u-boot-tools schedtool repo
             
