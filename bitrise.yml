@@ -6,7 +6,7 @@ app:
   - WORKDIR: "$BITRISE_DEPLOY_DIR/android"
   - MANIFEST_URL: "https://github.com/minimal-manifest-twrp/platform_manifest_twrp_aosp.git"
   - MANIFEST_BRANCH: "twrp-12.1"
-  - LUNCH_TARGET: "lineage_ziti-eng"
+  - LUNCH_TARGET: "voltage_ziti-eng"
   - BUILD_TARGET: "recoveryimage"
 
 workflows:
@@ -62,39 +62,16 @@ workflows:
             mkdir -p device/oneplus vendor/oneplus kernel/oneplus
             
             # Fixed, verified open-source targets for the CPH2569 ziti layout
-            git clone --depth=1 https://github.com/ziti-resources/device_oneplus_ziti.git -b lineage-21
-            git clone --depth=1 https://github.com/ziti-resources/kernel_oneplus_sm8350.git
-            git clone --depth=1 https://gitlab.com/ziti-resources/vendor_oneplus_ziti -b fourteen
+            git clone --depth=1 https://github.com/ziti-resources/device_oneplus_ziti.git device/oneplus/ziti
+            git clone --depth=1 https://github.com/ziti-resources/kernel_oneplus_sm8350.git kernel/oneplus/sm8350
+            git clone --depth=1 https://gitlab.com/ziti-resources/vendor_oneplus_ziti -b fourteen vendor/oneplus/ziti
             
-            # 🛠️ AUTOMATED PRODUCT FILE ALIGNMENT 
+            # Automated Product File Syntax Normalization
             cd device/oneplus/ziti
-            
-            # Check what name your makefile is actually using
-            FOUND_MK=$(ls *.mk | grep -E '(lineage|twrp|omni|aosp|full)_ziti\.mk' | head -n 1 || ls *_ziti.mk | head -n 1 || echo "")
-            
-            if [ -n "$FOUND_MK" ]; then
-              echo "Found existing product makefile: $FOUND_MK"
-              # Force create/overwrite AndroidProducts.mk to map explicitly to this file
-              echo "PRODUCT_MAKEFILES := \$(LOCAL_DIR)/$FOUND_MK" > AndroidProducts.mk
-              echo "COMMON_LUNCH_CHOICES := lineage_ziti-eng lineage_ziti-userdebug" >> AndroidProducts.mk
-              
-              # If the file isn't named lineage_ziti.mk, make a symlink copy so the build system finds it
-              if [ "$FOUND_MK" != "lineage_ziti.mk" ]; then
-                cp "$FOUND_MK" "lineage_ziti.mk"
-              fi
-            else
-              echo "WARNING: No standard product makefile found. Generating fallback lineage_ziti.mk..."
-              cat << 'EOF' > lineage_ziti.mk
-            $(call inherit-product, $(SRC_TARGET_DIR)/product/core_64bit.mk)
-            $(call inherit-product, $(SRC_TARGET_DIR)/product/minimal.mk)
-            $(call inherit-product, device/oneplus/ziti/device.mk)
-            PRODUCT_DEVICE := ziti
-            PRODUCT_NAME := lineage_ziti
-            PRODUCT_BRAND := OnePlus
-            PRODUCT_MODEL := CPH2569
-            PRODUCT_MANUFACTURER := oneplus
-            EOF
-              echo "PRODUCT_MAKEFILES := \$(LOCAL_DIR)/lineage_ziti.mk" > AndroidProducts.mk
+            if [ -f "AndroidProducts.mk" ]; then
+              echo "Fixing lunch definition choices..."
+              echo "PRODUCT_MAKEFILES := \$(LOCAL_DIR)/voltage_ziti.mk" > AndroidProducts.mk
+              echo "COMMON_LUNCH_CHOICES := voltage_ziti-eng voltage_ziti-userdebug" >> AndroidProducts.mk
             fi
             
     - script@1:
