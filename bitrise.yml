@@ -84,7 +84,6 @@ workflows:
             EOF
             
             # B. Empty out device.mk and common.mk to leave only the basic identity variables
-            # This completely kills the include chain calling Dolby or any other vendor frameworks.
             cat << 'EOF' > device/oneplus/ziti/device.mk
             # Minimal device configuration for TWRP
             PRODUCT_SOONG_NAMESPACES += device/oneplus/ziti
@@ -95,7 +94,16 @@ workflows:
             PRODUCT_SOONG_NAMESPACES += device/oneplus/sm8350-common
             EOF
             
-            # C. Overwrite the BoardConfig.mk to keep ONLY core hardware parameters
+            # C. CLEAN COMMON TREE: Bypass SEPolicy and fix illegal architecture flags
+            if [ -f "device/oneplus/sm8350-common/BoardConfigCommon.mk" ]; then
+              echo "Purging all external SEPolicy dependencies..."
+              sed -i '/sepolicy/Id' device/oneplus/sm8350-common/BoardConfigCommon.mk
+              
+              echo "Fixing illegal armv8-2a architecture variables to armv8-a..."
+              sed -i 's/armv8-2a/armv8-a/g' device/oneplus/sm8350-common/BoardConfigCommon.mk
+            fi
+            
+            # D. Overwrite the BoardConfig.mk to keep ONLY core hardware parameters
             cat << 'EOF' > device/oneplus/ziti/BoardConfig.mk
             TARGET_BOARD_PLATFORM := lahaina
             TARGET_BOOTLOADER_BOARD_NAME := ziti
@@ -113,17 +121,18 @@ workflows:
             TARGET_2ND_CPU_ABI2 := armeabi
             TARGET_2ND_CPU_VARIANT := generic
             
-            # Include basic parameters from common board config
+            # Include basic parameters from common board config AFTER fixing values inside it
             include device/oneplus/sm8350-common/BoardConfigCommon.mk
             
             TARGET_KERNEL_ARCH := arm64
             TARGET_KERNEL_HEADER_ARCH := arm64
             EOF
             
-            # C. BYPASS ROM SEPOLICY DEPENDENCY: Wipe out custom Voltage OS sepolicy entries
-            if [ -f "device/oneplus/sm8350-common/BoardConfigCommon.mk" ]; then
-              echo "Purging all external SEPolicy dependencies..."
-              sed -i '/sepolicy/Id' device/oneplus/sm8350-common/BoardConfigCommon.mk
+            # E. Normalize Product Choice Configuration for Lunch
+            cd device/oneplus/ziti
+            if [ -f "AndroidProducts.mk" ]; then
+              echo "PRODUCT_MAKEFILES := \$(LOCAL_DIR)/voltage_ziti.mk" > AndroidProducts.mk
+              echo "COMMON_LUNCH_CHOICES := voltage_ziti-eng" >> AndroidProducts.mk
             fi
             
             # Automated Product File Syntax Normalization
