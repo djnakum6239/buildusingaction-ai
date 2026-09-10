@@ -80,6 +80,14 @@ workflows:
             . build/envsetup.sh
             lunch "$LUNCH_TARGET"
             
+            echo "Enforcing absolute fallback path copies for the repository DTB asset..."
+            # Create the out target staging folder if it hasn't populated yet
+            mkdir -p out/target/product/ziti
+
+            # Force copy your real repo DTB file directly to where mkbootimg is looking for it
+            cp device/oneplus/ziti/prebuilt/dtb out/target/product/ziti/dtb.img
+            cp device/oneplus/ziti/prebuilt/dtb out/target/product/ziti/dtb
+            
             make -j$(nproc) "$BUILD_TARGET"
 
     - deploy-to-bitrise-io@2:
