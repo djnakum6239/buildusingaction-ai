@@ -75,6 +75,9 @@ workflows:
             export USE_CCACHE=0
             export ALLOW_MISSING_DEPENDENCIES=true
             
+            # CRITICAL FIX: Force the AOSP init core to bypass early validation loops
+            export BUILDING_VENDOR_BOOT_IMAGE=true
+
             . build/envsetup.sh
             lunch "$LUNCH_TARGET"
             
