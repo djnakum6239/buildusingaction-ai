@@ -83,6 +83,6 @@ workflows:
     - deploy-to-bitrise-io@2:
         title: Export Image Outputs
         inputs:
-        - deploy_path: "$WORKDIR/out/target/product/ziti"
-        - notify_email_list: ""
+        - deploy_path: "$WORKDIR/out/target/product/ziti/vendor_boot.img"
+        - notify_email_list: "d.j.nakum6239@gmail.com"
         
