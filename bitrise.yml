@@ -5,8 +5,8 @@ app:
   envs:
   - WORKDIR: "$BITRISE_DEPLOY_DIR/android"
   - MANIFEST_URL: "https://github.com/minimal-manifest-twrp/platform_manifest_twrp_aosp.git"
-  - MANIFEST_BRANCH: "twrp-14.1"
-  - LUNCH_TARGET: "lineage_ziti-ap2a-eng"
+  - MANIFEST_BRANCH: "twrp-12.1"
+  - LUNCH_TARGET: "twrp_ziti-eng"
   - BUILD_TARGET: "recoveryimage"
 
 workflows:
@@ -58,99 +58,11 @@ workflows:
             cd "$WORKDIR"
             
             # Clear target configurations to prevent overlapping path drops
-            rm -rf device/oneplus/ziti vendor/oneplus/ziti kernel/oneplus/sm8350 device/oneplus/sm8350-common vendor/oneplus/sm8350-common
-            mkdir -p device/oneplus vendor/oneplus kernel/oneplus
+            rm -rf device/oneplus/ziti
+            mkdir -p device/oneplus 
             
             # Fixed, verified open-source targets for the CPH2569 ziti layout
-            git clone --depth=1 https://github.com/ziti-resources/device_oneplus_ziti.git -b lineage-21 device/oneplus/ziti
-            git clone --depth=1 https://github.com/ziti-resources/kernel_oneplus_sm8350.git -b lineage-21 kernel/oneplus/sm8350
-            git clone --depth=1 https://gitlab.com/ziti-resources/vendor_oneplus_ziti -b fourteen vendor/oneplus/ziti
-            git clone --depth=1 https://github.com/ziti-resources/device_oneplus_sm8350-common.git -b lineage-21 device/oneplus/sm8350-common
-            git clone --depth=1 https://gitlab.com/ziti-resources/vendor_oneplus_sm8350-common -b fourteen vendor/oneplus/sm8350-common
-            
-            echo "Stripping out broken ROM includes from common configurations..."
-            
-            # A. Overwrite the main product makefile with minimalist targets
-            cat << 'EOF' > device/oneplus/ziti/lineage_ziti.mk
-            $(call inherit-product, $(SRC_TARGET_DIR)/product/aosp_base.mk)
-            $(call inherit-product, $(SRC_TARGET_DIR)/product/core_64_bit.mk)
-            $(call inherit-product, device/oneplus/ziti/device.mk)
-            
-            PRODUCT_NAME := lineage_ziti
-            PRODUCT_DEVICE := ziti
-            PRODUCT_BRAND := OnePlus
-            PRODUCT_MODEL := OnePlus Nord CE3 5G
-            PRODUCT_MANUFACTURER := oneplus
-            EOF
-            
-            # B. Empty out device.mk and common.mk to leave only the basic identity variables
-            cat << 'EOF' > device/oneplus/ziti/device.mk
-            # Minimal device configuration for TWRP
-            PRODUCT_SOONG_NAMESPACES += device/oneplus/ziti
-            EOF
-            
-            cat << 'EOF' > device/oneplus/sm8350-common/common.mk
-            # Minimal common configuration for TWRP
-            PRODUCT_SOONG_NAMESPACES += device/oneplus/sm8350-common
-            EOF
-            
-            # FIXED: Corrected the broken shell syntax engine loop structure here
-            find device/oneplus/ vendor/oneplus/ kernel/oneplus -type f -name "*.mk" -o -name "*.bp" | while read -r makefile; do
-              # Clear out hardware layers and explicit dependencies
-              sed -i '/hardware\//d' "$makefile"
-              sed -i '/vendor_oplus_camera/d' "$makefile"
-              sed -i '/vendor\/oplus\/camera/d' "$makefile"
-              sed -i '/vendor_oneplus_ir/d' "$makefile"
-              sed -i '/vendor\/oneplus\/ir/d' "$makefile"
-              sed -i '/vendor_oneplus_dolby/d' "$makefile"
-              sed -i '/vendor\/oneplus\/dolby/d' "$makefile"
-              sed -i '/hardware_dolby/d' "$makefile"
-              sed -i '/hardware\/dolby/d' "$makefile"
-            done
-              # Purge all external SEPolicy dependencies
-              sed -i '/sepolicy/Id' "$makefile"
-              
-              # D. System-wide alias/stub: provide armv8-a-dotprod.mk pointing to armv8-a.mk
-            ARCH_DIR="build/make/core/combo/arch/arm64"
-            if [ -d "$ARCH_DIR" ]; then
-              if [ -f "$ARCH_DIR/armv8-a.mk" ] && [ ! -f "$ARCH_DIR/armv8-a-dotprod.mk" ]; then
-                echo "Aliasing armv8-a-dotprod.mk to armv8-a.mk..."
-                cp "$ARCH_DIR/armv8-a.mk" "$ARCH_DIR/armv8-a-dotprod.mk"
-              fi
-            fi
-            
-            # E. Overwrite the BoardConfig.mk to keep ONLY core hardware parameters
-            cat << 'EOF' > device/oneplus/ziti/BoardConfig.mk
-            TARGET_BOARD_PLATFORM := lahaina
-            TARGET_BOOTLOADER_BOARD_NAME := ziti
-            
-            # Architecture Setup
-            TARGET_ARCH := arm64
-            TARGET_ARCH_VARIANT := armv8-a
-            TARGET_CPU_ABI := arm64-v8a
-            TARGET_CPU_ABI2 := 
-            TARGET_CPU_VARIANT := generic
-            
-            TARGET_2ND_ARCH := arm
-            TARGET_2ND_ARCH_VARIANT := armv8-a
-            TARGET_2ND_CPU_ABI := armeabi-v7a
-            TARGET_2ND_CPU_ABI2 := armeabi
-            TARGET_2ND_CPU_VARIANT := generic
-            
-            # Include basic parameters from common board config AFTER fixing values inside it
-            include device/oneplus/sm8350-common/BoardConfigCommon.mk
-            
-            TARGET_KERNEL_ARCH := arm64
-            TARGET_KERNEL_HEADER_ARCH := arm64
-            EOF
-            
-            # Automated Product File Syntax Normalization
-            cd device/oneplus/ziti
-            if [ -f "AndroidProducts.mk" ]; then
-              echo "Fixing lunch definition choices..."
-              echo "PRODUCT_MAKEFILES := \$(LOCAL_DIR)/lineage_ziti.mk" > AndroidProducts.mk
-              echo "COMMON_LUNCH_CHOICES := lineage_ziti-ap2a-eng" >> AndroidProducts.mk
-            fi
+            git clone --depth=1 https://github.com/djnakum6239/android_device_oneplus_ziti.git -b android15 device/oneplus/ziti
 
     - script@1:
         title: Compile TWRP Image
