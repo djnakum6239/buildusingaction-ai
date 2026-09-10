@@ -7,7 +7,7 @@ app:
   - MANIFEST_URL: "https://github.com/minimal-manifest-twrp/platform_manifest_twrp_aosp.git"
   - MANIFEST_BRANCH: "twrp-12.1"
   - LUNCH_TARGET: "twrp_ziti-eng"
-  - BUILD_TARGET: "recoveryimage"
+  - BUILD_TARGET: "vendorbootimage"
 
 workflows:
   build_twrp:
