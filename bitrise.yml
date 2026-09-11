@@ -153,8 +153,7 @@ workflows:
     - save-cache:
         title: Save Android Source Cache
         inputs:
-        - key: android-src-{{ .Branch }}
+        - key: android-src-v1
         - paths: |
             /bitrise/deploy/android/.repo
             /bitrise/deploy/android/.ccache
-
