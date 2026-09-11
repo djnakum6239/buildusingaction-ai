@@ -108,30 +108,24 @@ workflows:
             lunch "$LUNCH_TARGET"
             set -e
             
-            echo "Step 1: Pre-creating target output directory framework..."
-            mkdir -p out/target/product/ziti
+            echo "Step 1: Compiling OrangeFox natively via AOSP build system..."
+            # FIXED: Targets 'vendorbootimage' target so AOSP automatically outputs the completely signed image container!
+            make -j$(nproc) vendorbootimage
             
-            echo "Step 2: Compiling host packing binaries and recovery components..."
-            make -j$(nproc) \
-              mkbootimg \
-              recoveryimage
+            echo "Step 2: Checking native output directory for built images..."
+            ls -la out/target/product/ziti/
             
-            echo "Step 3: Enforcing structural path copies for the repository DTB asset..."
-            cp device/oneplus/ziti/prebuilt/dtb out/target/product/ziti/dtb.img
-            cp device/oneplus/ziti/prebuilt/dtb out/target/product/ziti/dtb
+            # FIXED: Locates the image built natively by the AOSP system and copies it over safely
+            if [ -f "out/target/product/ziti/vendor_boot.img" ]; then
+                cp out/target/product/ziti/vendor_boot.img out/target/product/ziti/OrangeFox-vendor_boot.img
+            elif [ -f "out/target/product/ziti/OrangeFox-Unofficial-ziti.img" ]; then
+                cp out/target/product/ziti/OrangeFox-Unofficial-ziti.img out/target/product/ziti/OrangeFox-vendor_boot.img
+            else
+                # Fallback to catch whatever .img file OrangeFox packed into your output directory
+                cp out/target/product/ziti/*.img out/target/product/ziti/OrangeFox-vendor_boot.img || true
+            fi
             
-            echo "Step 4: Packaging the final OrangeFox vendor_boot image container..."
-            out/host/linux-x86/bin/mkbootimg \
-              --dtb out/target/product/ziti/dtb.img \
-              --vendor_cmdline "buildvariant=eng" \
-              --header_version 4 \
-              --vendor_ramdisk out/target/product/ziti/ramdisk-recovery.cpio.gz \
-              --ramdisk_type RECOVERY \
-              --ramdisk_name recovery \
-              --vendor_ramdisk_fragment out/target/product/ziti/ramdisk-recovery.cpio.gz \
-              --vendor_boot out/target/product/ziti/OrangeFox-vendor_boot.img
-            
-            echo "Step 5: Appending AVB crypto verified boot hash footers..."
+            echo "Step 3: Appending AVB crypto verified boot hash footers to the native compilation asset..."
             out/host/linux-x86/bin/avbtool add_hash_footer \
               --image out/target/product/ziti/OrangeFox-vendor_boot.img \
               --partition_size 100663296 \
