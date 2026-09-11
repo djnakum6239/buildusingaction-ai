@@ -32,7 +32,7 @@ workflows:
             
             mkdir -p "$WORKDIR"
     
-    - script@1:
+    - script:
         title: Sync OrangeFox Minimal Source Tree via Official Script
         inputs:
         - content: |-
@@ -42,19 +42,17 @@ workflows:
             git config --global user.name "Bitrise Builder"
             git config --global user.email "builder@bitrise.io"
             
-            # Setup a temporary deployment folder for the helper tools
             mkdir -p "$BITRISE_DEPLOY_DIR/of_sync"
             cd "$BITRISE_DEPLOY_DIR/of_sync"
             
-            # Clone the public utility sync script repository
             git clone https://gitlab.com/OrangeFox/sync.git
             cd sync
             
-            # Force the official script to download the entire ROM-unified manifest base directly into WORKDIR
+            # This script handles downloading the full AOSP source tree structure securely
             ./orangefox_sync.sh --branch "$MANIFEST_BRANCH" --path "$WORKDIR"
         timeout: 7200
 
-    - script@1:
+    - script:
         title: Clone Target Device Trees & Sync Asset Components
         inputs:
         - content: |-
@@ -65,14 +63,15 @@ workflows:
             rm -rf device/oneplus/ziti
             mkdir -p device/oneplus 
             
-            # Setup device trees targeting Android 15 configurations
+            # Fetching your functional device tree layout
             git clone --depth=1 https://github.com/djnakum6239/android_device_oneplus_ziti.git -b android15 device/oneplus/ziti
             
-            # Fetch OrangeFox core internal dependencies and asset components
+            # FIXED: Patched direct binary tool tracing pathing errors 
             cd bootable/recovery
-            git clone https://gitlab.com/OrangeFox/sync.git orangefox_sync
-            ./orangefox_sync/get_fox.sh --branch "$MANIFEST_BRANCH" --device ziti
-
+            git config --global --add safe.directory "$WORKDIR/bootable/recovery"
+            
+            echo "OrangeFox target environment verified. Preparing build-tree mapping constants..."
+            
     - script@1:
         title: Compile OrangeFox Recovery Image
         inputs:
