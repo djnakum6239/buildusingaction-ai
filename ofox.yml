@@ -5,8 +5,8 @@ app:
   envs:
   - WORKDIR: "$BITRISE_DEPLOY_DIR/android"
   # Updated to OrangeFox official minimal manifest repository
-  - MANIFEST_URL: "https://gitlab.com"
-  - MANIFEST_BRANCH: "12.1"
+  - MANIFEST_URL: "https://gitlab.com/OrangeFox/Manifest.git"
+  - MANIFEST_BRANCH: "fox_12.1"
   - LUNCH_TARGET: "twrp_ziti-eng"
   - BUILD_TARGET: "vendorbootimage"
 
@@ -65,7 +65,7 @@ workflows:
             
             # Fetch OrangeFox core internal dependencies and asset components
             cd bootable/recovery
-            git clone https://gitlab.com orangefox_sync
+            git clone https://gitlab.com/OrangeFox/sync.git orangefox_sync
             ./orangefox_sync/get_fox.sh --branch 12.1 --device ziti
 
     - script@1:
