@@ -7,7 +7,7 @@ app:
   - MANIFEST_URL: "https://github.com/minimal-manifest-twrp/platform_manifest_twrp_aosp.git"
   - MANIFEST_BRANCH: "twrp-12.1"
   - LUNCH_TARGET: "twrp_ziti-eng"
-  - BUILD_TARGET: "vendorbootimage"
+  - BUILD_TARGET: "bootimage"
 
 workflows:
   build_twrp:
@@ -23,7 +23,6 @@ workflows:
             #!/usr/bin/env bash
             set -ex
             
-            # Update apt repositories and pull required AOSP packages
             sudo apt-get update
             sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
               git-core gnupg flex bison build-essential zip curl zlib1g-dev \
@@ -44,7 +43,6 @@ workflows:
             git config --global user.name "Bitrise Builder"
             git config --global user.email "builder@bitrise.io"
             
-            # Shallow init pulls the tree framework without massive file history
             repo init -u "$MANIFEST_URL" -b "$MANIFEST_BRANCH" --depth=1
             repo sync -c -j$(nproc) --no-tags --no-clone-bundle --force-sync
         timeout: 7200
@@ -57,11 +55,9 @@ workflows:
             set -ex
             cd "$WORKDIR"
             
-            # Clear target configurations to prevent overlapping path drops
             rm -rf device/oneplus/ziti
             mkdir -p device/oneplus 
             
-            # Fixed, verified open-source targets for the CPH2569 ziti layout
             git clone --depth=1 https://github.com/djnakum6239/android_device_oneplus_ziti.git -b android15 device/oneplus/ziti
 
     - script@1:
@@ -78,44 +74,11 @@ workflows:
             . build/envsetup.sh
             lunch "$LUNCH_TARGET"
             
-            echo "Step 1: Pre-creating target output directory framework..."
-            mkdir -p out/target/product/ziti
-            
-            echo "Step 2: Explicitly building the required mkbootimg host tools & intermediates..."
-            # FIXED: Forces compilation of the host packing binaries before using them manually!
-            make -j$(nproc) \
-              mkbootimg \
-              out/target/product/ziti/obj/PACKAGING/vendor_ramdisk_fragments_intermediates/recovery.cpio.gz \
-              out/target/product/ziti/obj/PACKAGING/vendor_boot_intermediates/vendor_ramdisk.cpio.gz || true
-            
-            echo "Step 3: Enforcing absolute manual path copies for the repository DTB asset..."
-            cp device/oneplus/ziti/prebuilt/dtb out/target/product/ziti/dtb.img
-            cp device/oneplus/ziti/prebuilt/dtb out/target/product/ziti/dtb
-            
-            echo "Step 4: Manually packaging the final vendor_boot image container..."
-            out/host/linux-x86/bin/mkbootimg \
-              --dtb out/target/product/ziti/dtb.img \
-              --vendor_cmdline "buildvariant=eng" \
-              --header_version 4 \
-              --vendor_ramdisk out/target/product/ziti/obj/PACKAGING/vendor_boot_intermediates/vendor_ramdisk.cpio.gz \
-              --ramdisk_type RECOVERY \
-              --ramdisk_name recovery \
-              --vendor_ramdisk_fragment out/target/product/ziti/obj/PACKAGING/vendor_ramdisk_fragments_intermediates/recovery.cpio.gz \
-              --vendor_boot out/target/product/ziti/vendor_boot.img
-            
-            echo "Step 5: Appending AVB crypto verified boot hash footers..."
-            # FIXED: Injected a standard valid build fingerprint override string to bypass file dependencies
-            out/host/linux-x86/bin/avbtool add_hash_footer \
-              --image out/target/product/ziti/vendor_boot.img \
-              --partition_size 100663296 \
-              --partition_name vendor_boot \
-              --prop com.android.build.vendor_boot.fingerprint:oneplus/ziti/ziti:12/SKQ1.221115.001/release-keys
-            
-            echo "SUCCESS: Standalone vendor_boot.img generated perfectly!"
-            
+            make -j$(nproc) "$BUILD_TARGET"
+
     - deploy-to-bitrise-io@2:
         title: Export Image Outputs
         inputs:
-        - deploy_path: "$WORKDIR/out/target/product/ziti/vendor_boot.img"
+        - deploy_path: "$WORKDIR/out/target/product/ziti/boot.img"
         - notify_email_list: "d.j.nakum6239@gmail.com"
         
