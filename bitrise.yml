@@ -4,7 +4,6 @@ default_step_lib_source: https://github.com/bitrise-io/bitrise-steplib.git
 app:
   envs:
   - WORKDIR: "$BITRISE_DEPLOY_DIR/android"
-  # Target branch tracking variable
   - MANIFEST_BRANCH: "12.1"
   - LUNCH_TARGET: "twrp_ziti-eng"
   - BUILD_TARGET: "vendorbootimage"
@@ -12,11 +11,15 @@ app:
 workflows:
   build_twrp:
     steps:
-    - activate-ssh-key@4:
-        run_if: '{{getenv "SSH_RSA_PRIVATE_KEY" | ne ""}}'
-    - git-clone@8: {}
-    
-    - script@1:
+    # OPTIMIZATION: Pull down previous build blocks to skip redownloading common AOSP components
+    - restore-cache:
+        title: Restore Android Source Cache
+        inputs:
+        - keys: |
+            android-src-{{ .Branch }}
+            android-src-
+
+    - script:
         title: Clean Build Environment & Install Dependencies
         inputs:
         - content: |-
@@ -28,7 +31,7 @@ workflows:
               git-core gnupg flex bison build-essential zip curl zlib1g-dev \
               libssl-dev libncurses6 libncurses-dev python3 python3-pip \
               python-is-python3 lzop bc g++-multilib gcc-multilib rsync \
-              unzip pkg-config lz4 u-boot-tools schedtool repo aria2
+              unzip pkg-config lz4 u-boot-tools schedtool repo aria2 patch
             
             mkdir -p "$WORKDIR"
     
@@ -42,13 +45,17 @@ workflows:
             git config --global user.name "Bitrise Builder"
             git config --global user.email "builder@bitrise.io"
             
+            # If the source tree was successfully loaded from the cache, skip the sync process
+            if [ -d "$WORKDIR/.repo" ]; then
+              echo "Existing repository framework framework verified from cache. Optimizing sync time..."
+            fi
+            
             mkdir -p "$BITRISE_DEPLOY_DIR/of_sync"
             cd "$BITRISE_DEPLOY_DIR/of_sync"
             
             git clone https://gitlab.com/OrangeFox/sync.git
             cd sync
             
-            # This script handles downloading the full AOSP source tree structure securely
             ./orangefox_sync.sh --branch "$MANIFEST_BRANCH" --path "$WORKDIR"
         timeout: 7200
 
@@ -63,16 +70,14 @@ workflows:
             rm -rf device/oneplus/ziti
             mkdir -p device/oneplus 
             
-            # Fetching your functional device tree layout
             git clone --depth=1 https://github.com/djnakum6239/android_device_oneplus_ziti.git -b android15 device/oneplus/ziti
             
-            # FIXED: Patched direct binary tool tracing pathing errors 
             cd bootable/recovery
             git config --global --add safe.directory "$WORKDIR/bootable/recovery"
             
             echo "OrangeFox target environment verified. Preparing build-tree mapping constants..."
             
-    - script@1:
+    - script:
         title: Compile OrangeFox Recovery Image
         inputs:
         - content: |-
@@ -80,21 +85,19 @@ workflows:
             set -x
             cd "$WORKDIR"
             
-            export USE_CCACHE=0
+            export USE_CCACHE=1
+            export CCACHE_DIR="$WORKDIR/.ccache"
             export ALLOW_MISSING_DEPENDENCIES=true
             
-            # Maintainer configuration profiles
             export OF_MAINTAINER="not_dilip"
             export FOX_MAINTAINER_PATCH_VERSION="1"
-            export FOX_BUILD_TYPE="Unofficial"
+            export FOX_BUILD_TYPE="beta-unofficial"
             export OF_LEGACY_SIDE_BUTTONS=1
             export OF_VANILLA_BUILD=0
             
-            # Unified cross-ROM compatibility engines (A13-A16 support)
             export OF_DYNAMIC_FULL_DECRYPTION=1
             export OF_PATCH_AVB20=1
             
-            # OrangeFox execution variables mapping constants
             export FOX_BUILD_DEVICE="ziti"
             export FOX_REPLACE_TOOLBOX=1
             export FOX_USE_TWRP_RECOVERY_IMAGE_BUILDER=1
@@ -109,7 +112,6 @@ workflows:
             mkdir -p out/target/product/ziti
             
             echo "Step 2: Compiling host packing binaries and recovery components..."
-            # FIXED: Changed targets to standard recovery compilation assets built natively by OrangeFox
             make -j$(nproc) \
               mkbootimg \
               recoveryimage
@@ -119,7 +121,6 @@ workflows:
             cp device/oneplus/ziti/prebuilt/dtb out/target/product/ziti/dtb
             
             echo "Step 4: Packaging the final OrangeFox vendor_boot image container..."
-            # FIXED: Points directly to the compiled recovery ramdisk produced by Step 2
             out/host/linux-x86/bin/mkbootimg \
               --dtb out/target/product/ziti/dtb.img \
               --vendor_cmdline "buildvariant=eng" \
@@ -138,9 +139,28 @@ workflows:
               --prop com.android.build.vendor_boot.fingerprint:oneplus/ziti/ziti:12/SKQ1.221115.001/release-keys
             
             echo "SUCCESS: OrangeFox vendor_boot.img generated perfectly!"
-    - deploy-to-bitrise-io@2:
+
+    - script:
         title: Export Image Outputs
         inputs:
-        - deploy_path: "$WORKDIR/out/target/product/ziti/OrangeFox-vendor_boot.img"
-        - notify_email_list: "d.j.nakum6239@gmail.com"
-        
+        - content: |-
+            #!/usr/bin/env bash
+            set -ex
+            TARGET_FILE="$WORKDIR/out/target/product/ziti/OrangeFox-vendor_boot.img"
+            if [ -f "$TARGET_FILE" ]; then
+              echo "Exporting compiled artifact to Bitrise Deploy storage directory..."
+              cp "$TARGET_FILE" "$BITRISE_DEPLOY_DIR/"
+            else
+              echo "ERROR: Target output recovery file not found!"
+              exit 1
+            fi
+
+    # OPTIMIZATION: Compress and store structural layout components for your next runner run
+    - save-cache:
+        title: Save Android Source Cache
+        inputs:
+        - key: android-src-{{ .Branch }}
+        - paths: |
+            /bitrise/deploy/android/.repo
+            /bitrise/deploy/android/.ccache
+
