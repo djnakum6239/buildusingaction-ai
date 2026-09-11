@@ -1,17 +1,16 @@
 format_version: "13"
-default_step_lib_source: https://github.com/bitrise-io/bitrise-steplib.git
+default_step_lib_source: https://github.com
 
 app:
   envs:
   - WORKDIR: "$BITRISE_DEPLOY_DIR/android"
-  # Standardized official OrangeFox recovery manifest parameters
-  - MANIFEST_URL: "https://gitlab.com/OrangeFox/Manifest.git"
-  - MANIFEST_BRANCH: "fox_12.1"
+  # Target branch tracking variable
+  - MANIFEST_BRANCH: "12.1"
   - LUNCH_TARGET: "twrp_ziti-eng"
   - BUILD_TARGET: "vendorbootimage"
 
 workflows:
-  build_twrp: # FIXED: Changed from build_orangefox to prevent Bitrise configuration matching failures
+  build_twrp:
     steps:
     - activate-ssh-key@4:
         run_if: '{{getenv "SSH_RSA_PRIVATE_KEY" | ne ""}}'
@@ -34,23 +33,29 @@ workflows:
             mkdir -p "$WORKDIR"
     
     - script@1:
-        title: Repo Init and Sync OrangeFox Minimal Source Tree
+        title: Sync OrangeFox Minimal Source Tree via Official Script
         inputs:
         - content: |-
             #!/usr/bin/env bash
             set -ex
-            cd "$WORKDIR"
             
             git config --global user.name "Bitrise Builder"
             git config --global user.email "builder@bitrise.io"
             
-            # Pull down the baseline build tree framework configuration
-            repo init -u "$MANIFEST_URL" -b "$MANIFEST_BRANCH" --depth=1
-            repo sync -c -j$(nproc) --no-tags --no-clone-bundle --force-sync
+            # Setup a temporary deployment folder for the helper tools
+            mkdir -p "$BITRISE_DEPLOY_DIR/of_sync"
+            cd "$BITRISE_DEPLOY_DIR/of_sync"
+            
+            # Clone the public utility sync script repository
+            git clone https://gitlab.com/OrangeFox/sync.git
+            cd sync
+            
+            # Force the official script to download the entire ROM-unified manifest base directly into WORKDIR
+            ./orangefox_sync.sh --branch "$MANIFEST_BRANCH" --path "$WORKDIR"
         timeout: 7200
 
     - script@1:
-        title: Clone Target Device Trees & Sync OrangeFox Sync Script
+        title: Clone Target Device Trees & Sync Asset Components
         inputs:
         - content: |-
             #!/usr/bin/env bash
@@ -63,10 +68,10 @@ workflows:
             # Setup device trees targeting Android 15 configurations
             git clone --depth=1 https://github.com/djnakum6239/android_device_oneplus_ziti.git -b android15 device/oneplus/ziti
             
-            # FIXED: Aligned branches to 'fox_12.1' to match core manifest tree specifications
+            # Fetch OrangeFox core internal dependencies and asset components
             cd bootable/recovery
             git clone https://gitlab.com/OrangeFox/sync.git orangefox_sync
-            ./orangefox_sync/get_fox.sh --branch fox_12.1 --device ziti
+            ./orangefox_sync/get_fox.sh --branch "$MANIFEST_BRANCH" --device ziti
 
     - script@1:
         title: Compile OrangeFox Recovery Image
