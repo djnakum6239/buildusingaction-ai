@@ -5,6 +5,7 @@ app:
   envs:
   - WORKDIR: "$BITRISE_DEPLOY_DIR/android"
   # Target branch tracking variable
+  - MANIFEST_URL: "https://github.com"
   - MANIFEST_BRANCH: "12.1"
   - LUNCH_TARGET: "twrp_ziti-eng"
   - BUILD_TARGET: "vendorbootimage"
@@ -14,7 +15,14 @@ workflows:
     steps:
     - activate-ssh-key@4:
         run_if: '{{getenv "SSH_RSA_PRIVATE_KEY" | ne ""}}'
-    - git-clone@8: {}
+    - git-clone@8:
+        # FIXED: Forces the step to gracefully catch/ignore empty app repository clones
+        inputs:
+        - commit: ""
+        - tag: ""
+        - branch: ""
+        - clone_into_dir: ""
+        - repository_url: ""
     
     - script@1:
         title: Clean Build Environment & Install Dependencies
