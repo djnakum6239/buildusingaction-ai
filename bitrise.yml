@@ -83,14 +83,14 @@ workflows:
             export USE_CCACHE=0
             export ALLOW_MISSING_DEPENDENCIES=true
             
-            # FIXED: Removed the obsolete FOX_VERSION string and migrated to modern maintainer patches
-            export OF_MAINTAINER="BitriseBuilder"
+            # Maintainer configuration profiles
+            export OF_MAINTAINER="not_dilip"
             export FOX_MAINTAINER_PATCH_VERSION="1"
             export FOX_BUILD_TYPE="Unofficial"
             export OF_LEGACY_SIDE_BUTTONS=1
             export OF_VANILLA_BUILD=0
             
-            # Advanced dynamic structural decryption engines parameters
+            # Unified cross-ROM compatibility engines (A13-A16 support)
             export OF_DYNAMIC_FULL_DECRYPTION=1
             export OF_PATCH_AVB20=1
             
@@ -108,26 +108,26 @@ workflows:
             echo "Step 1: Pre-creating target output directory framework..."
             mkdir -p out/target/product/ziti
             
-            echo "Step 2: Building mkbootimg host tools & intermediate cpio archives..."
-            # Dropped the logical '|| true' wrapper to enforce strict tracking logs if the compiler flags throw warnings
+            echo "Step 2: Compiling host packing binaries and recovery components..."
+            # FIXED: Changed targets to standard recovery compilation assets built natively by OrangeFox
             make -j$(nproc) \
               mkbootimg \
-              out/target/product/ziti/obj/PACKAGING/vendor_ramdisk_fragments_intermediates/recovery.cpio.gz \
-              out/target/product/ziti/obj/PACKAGING/vendor_boot_intermediates/vendor_ramdisk.cpio.gz
+              recoveryimage
             
             echo "Step 3: Enforcing structural path copies for the repository DTB asset..."
             cp device/oneplus/ziti/prebuilt/dtb out/target/product/ziti/dtb.img
             cp device/oneplus/ziti/prebuilt/dtb out/target/product/ziti/dtb
             
             echo "Step 4: Packaging the final OrangeFox vendor_boot image container..."
+            # FIXED: Points directly to the compiled recovery ramdisk produced by Step 2
             out/host/linux-x86/bin/mkbootimg \
               --dtb out/target/product/ziti/dtb.img \
               --vendor_cmdline "buildvariant=eng" \
               --header_version 4 \
-              --vendor_ramdisk out/target/product/ziti/obj/PACKAGING/vendor_boot_intermediates/vendor_ramdisk.cpio.gz \
+              --vendor_ramdisk out/target/product/ziti/ramdisk-recovery.cpio.gz \
               --ramdisk_type RECOVERY \
               --ramdisk_name recovery \
-              --vendor_ramdisk_fragment out/target/product/ziti/obj/PACKAGING/vendor_ramdisk_fragments_intermediates/recovery.cpio.gz \
+              --vendor_ramdisk_fragment out/target/product/ziti/ramdisk-recovery.cpio.gz \
               --vendor_boot out/target/product/ziti/OrangeFox-vendor_boot.img
             
             echo "Step 5: Appending AVB crypto verified boot hash footers..."
