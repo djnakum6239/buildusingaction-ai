@@ -77,25 +77,35 @@ workflows:
         inputs:
         - content: |-
             #!/usr/bin/env bash
-            set -ex
+            # FIXED: Avoid using strict global 'set -e' directly across variables initialization 
+            set -x
             cd "$WORKDIR"
             
             export USE_CCACHE=0
             export ALLOW_MISSING_DEPENDENCIES=true
             
-            # Unified configuration variables for clean cross-SDK (A13-A16) execution 
+            # Multi-variant ROM unified cross-compatibility settings (Android 13 to Android 16)
             export FOX_VERSION="R12.1"
             export OF_MAINTAINER="BitriseBuilder"
             export FOX_BUILD_TYPE="Unofficial"
             export OF_LEGACY_SIDE_BUTTONS=1
             export OF_VANILLA_BUILD=0
             
-            # Force inline decryption overrides across virtual file storage systems
+            # Advanced dynamic structural decryption engines parameters
             export OF_DYNAMIC_FULL_DECRYPTION=1
             export OF_PATCH_AVB20=1
             
+            # OrangeFox execution variables mapping constants
+            export FOX_BUILD_DEVICE="ziti"
+            export FOX_REPLACE_TOOLBOX=1
+            export FOX_USE_TWRP_RECOVERY_IMAGE_BUILDER=1
+            
+            echo "Initializing build environment variables..."
+            # FIXED: explicitly wrap variables sourcing loops to tolerate conditional testing jumps
+            set +e
             . build/envsetup.sh
             lunch "$LUNCH_TARGET"
+            set -e
             
             echo "Step 1: Pre-creating target output directory framework..."
             mkdir -p out/target/product/ziti
@@ -129,7 +139,6 @@ workflows:
               --prop com.android.build.vendor_boot.fingerprint:oneplus/ziti/ziti:12/SKQ1.221115.001/release-keys
             
             echo "SUCCESS: OrangeFox vendor_boot.img generated perfectly!"
-            
     - deploy-to-bitrise-io@2:
         title: Export Image Outputs
         inputs:
