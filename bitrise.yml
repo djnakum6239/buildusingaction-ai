@@ -15,14 +15,7 @@ workflows:
     steps:
     - activate-ssh-key@4:
         run_if: '{{getenv "SSH_RSA_PRIVATE_KEY" | ne ""}}'
-    - git-clone@8:
-        # FIXED: Forces the step to gracefully catch/ignore empty app repository clones
-        inputs:
-        - commit: ""
-        - tag: ""
-        - branch: ""
-        - clone_into_dir: ""
-        - repository_url: ""
+    
     
     - script@1:
         title: Clean Build Environment & Install Dependencies
