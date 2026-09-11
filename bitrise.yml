@@ -77,16 +77,15 @@ workflows:
         inputs:
         - content: |-
             #!/usr/bin/env bash
-            # FIXED: Avoid using strict global 'set -e' directly across variables initialization 
             set -x
             cd "$WORKDIR"
             
             export USE_CCACHE=0
             export ALLOW_MISSING_DEPENDENCIES=true
             
-            # Multi-variant ROM unified cross-compatibility settings (Android 13 to Android 16)
-            export FOX_VERSION="R12.1"
+            # FIXED: Removed the obsolete FOX_VERSION string and migrated to modern maintainer patches
             export OF_MAINTAINER="BitriseBuilder"
+            export FOX_MAINTAINER_PATCH_VERSION="1"
             export FOX_BUILD_TYPE="Unofficial"
             export OF_LEGACY_SIDE_BUTTONS=1
             export OF_VANILLA_BUILD=0
@@ -101,7 +100,6 @@ workflows:
             export FOX_USE_TWRP_RECOVERY_IMAGE_BUILDER=1
             
             echo "Initializing build environment variables..."
-            # FIXED: explicitly wrap variables sourcing loops to tolerate conditional testing jumps
             set +e
             . build/envsetup.sh
             lunch "$LUNCH_TARGET"
@@ -111,10 +109,11 @@ workflows:
             mkdir -p out/target/product/ziti
             
             echo "Step 2: Building mkbootimg host tools & intermediate cpio archives..."
+            # Dropped the logical '|| true' wrapper to enforce strict tracking logs if the compiler flags throw warnings
             make -j$(nproc) \
               mkbootimg \
               out/target/product/ziti/obj/PACKAGING/vendor_ramdisk_fragments_intermediates/recovery.cpio.gz \
-              out/target/product/ziti/obj/PACKAGING/vendor_boot_intermediates/vendor_ramdisk.cpio.gz || true
+              out/target/product/ziti/obj/PACKAGING/vendor_boot_intermediates/vendor_ramdisk.cpio.gz
             
             echo "Step 3: Enforcing structural path copies for the repository DTB asset..."
             cp device/oneplus/ziti/prebuilt/dtb out/target/product/ziti/dtb.img
