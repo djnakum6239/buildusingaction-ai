@@ -107,18 +107,26 @@ workflows:
             lunch "$LUNCH_TARGET"
             set -e
             
-            echo "Step 1: Pre-creating product target output structures..."
+            echo "Step 1: Instantiating background loop to prevent empty DTB image packaging crashes..."
+            # FIXED: Runs a safe loop in the background. Every 5 seconds during the compilation, 
+            # it ensures the prebuilt DTB file is firmly in place inside the target out directory.
             mkdir -p out/target/product/ziti
+            (
+                while [ ! -f "out/target/product/ziti/vendor_boot.img" ]; do
+                    cp device/oneplus/ziti/prebuilt/dtb out/target/product/ziti/dtb.img 2>/dev/null || true
+                    cp device/oneplus/ziti/prebuilt/dtb out/target/product/ziti/dtb 2>/dev/null || true
+                    sleep 5
+                done
+            ) &
+            LOOP_PID=$!
             
-            echo "Step 2: FIXED - Injecting device tree prebuilt DTB into active compilation targets..."
-            # This directly satisfies the internal AOSP check that caused the empty DTB image crash
-            cp device/oneplus/ziti/prebuilt/dtb out/target/product/ziti/dtb.img
-            cp device/oneplus/ziti/prebuilt/dtb out/target/product/ziti/dtb
-            
-            echo "Step 3: Compiling OrangeFox natively via AOSP build system..."
+            echo "Step 2: Compiling OrangeFox natively via AOSP build system..."
             make -j$(nproc) vendorbootimage
             
-            echo "Step 4: Packaging and validation of output generation targets..."
+            # Kill the background loop once compilation ends successfully
+            kill $LOOP_PID 2>/dev/null || true
+            
+            echo "Step 3: Packaging and validation of output generation targets..."
             if [ -f "out/target/product/ziti/vendor_boot.img" ]; then
                 cp out/target/product/ziti/vendor_boot.img out/target/product/ziti/OrangeFox-vendor_boot.img
             else
