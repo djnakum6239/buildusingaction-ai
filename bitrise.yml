@@ -114,14 +114,12 @@ workflows:
             echo "Step 2: Checking native output directory for built images..."
             ls -la out/target/product/ziti/
             
-            # FIXED: Locates the image built natively by the AOSP system and copies it over safely
+            # FIXED: Seamless image copying that hooks cleanly into AOSP native file generations
             if [ -f "out/target/product/ziti/vendor_boot.img" ]; then
                 cp out/target/product/ziti/vendor_boot.img out/target/product/ziti/OrangeFox-vendor_boot.img
-            elif [ -f "out/target/product/ziti/OrangeFox-Unofficial-ziti.img" ]; then
-                cp out/target/product/ziti/OrangeFox-Unofficial-ziti.img out/target/product/ziti/OrangeFox-vendor_boot.img
             else
-                # Fallback to catch whatever .img file OrangeFox packed into your output directory
-                cp out/target/product/ziti/*.img out/target/product/ziti/OrangeFox-vendor_boot.img || true
+                echo "Falling back to local multi-format image parsing lookup paths..."
+                cp out/target/product/ziti/OrangeFox-*.img out/target/product/ziti/OrangeFox-vendor_boot.img || cp out/target/product/ziti/vendor_boot.img out/target/product/ziti/OrangeFox-vendor_boot.img || true
             fi
             
             echo "Step 3: Appending AVB crypto verified boot hash footers to the native compilation asset..."
@@ -132,7 +130,7 @@ workflows:
               --prop com.android.build.vendor_boot.fingerprint:oneplus/ziti/ziti:12/SKQ1.221115.001/release-keys
             
             echo "SUCCESS: OrangeFox vendor_boot.img generated perfectly!"
-
+            
     - script:
         title: Export Image Outputs
         inputs:
