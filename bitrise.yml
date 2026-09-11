@@ -15,10 +15,9 @@ workflows:
     - restore-cache:
         title: Restore Android Source Cache
         inputs:
-        - keys: |
-            android-src-{{ .Branch }}
-            android-src-
-
+        # FIXED: Converted to a clean single-string tracking signature to prevent plugin configuration failures
+        - key: android-src-v1
+        
     - script:
         title: Clean Build Environment & Install Dependencies
         inputs:
